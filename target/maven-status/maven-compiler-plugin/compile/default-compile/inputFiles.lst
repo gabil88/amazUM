@@ -1,7 +1,11 @@
-/home/simon/3º ano/SD/amazUM/src/main/java/org/TaggedConnection.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Venda.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Client.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/ClientLibrary.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Demultiplexer.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/ProductCatalog.java
+/home/luislei/LEI/amazUM/src/main/java/org/Client.java
+/home/luislei/LEI/amazUM/src/main/java/org/Server/Server.java
+/home/luislei/LEI/amazUM/src/main/java/org/Server/ServerDatabase.java
+/home/luislei/LEI/amazUM/src/main/java/org/Venda.java
+/home/luislei/LEI/amazUM/src/main/java/org/ClientLibrary.java
+/home/luislei/LEI/amazUM/src/main/java/org/ProductCatalog.java
+/home/luislei/LEI/amazUM/src/main/java/org/utils/RequestType.java
+/home/luislei/LEI/amazUM/src/main/java/org/TaggedConnection.java
+/home/luislei/LEI/amazUM/src/main/java/org/Demultiplexer.java
+/home/luislei/LEI/amazUM/src/main/java/org/Server/ServerWorker.java
+/home/luislei/LEI/amazUM/src/main/java/org/ClientUI.java

@@ -1,5 +1,6 @@
-org/Client.class
-org/Server.class
 org/TaggedConnection$Frame.class
+org/Server/ServerWorker$1.class
+org/Client.class
+org/ClientUI.class
 org/Demultiplexer.class
 org/TaggedConnection.class

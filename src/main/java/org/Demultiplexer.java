@@ -58,8 +58,8 @@ public class Demultiplexer implements AutoCloseable {
         conn.send(frame);
     }
     
-    public void send(int tag, byte[] data) throws IOException { 
-        send(new TaggedConnection.Frame(tag, data));
+    public void send(int tag, short requestType, byte[] data) throws IOException { 
+        send(new TaggedConnection.Frame(tag, requestType, data));
     }
 
     // Espera por resposta com a tag especificada

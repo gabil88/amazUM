@@ -1,6 +1,5 @@
 package org;
 
-
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.locks.Lock;
@@ -14,10 +13,12 @@ public class TaggedConnection implements AutoCloseable {
 
     public static class Frame {
         public final int tag;
+        public final short requestType;
         public final byte[] data;
 
-        public Frame(int tag, byte[] data) {
+        public Frame(int tag, short requestType, byte[] data) {
             this.tag = tag;
+            this.requestType = requestType;
             this.data = data;
         }
     }
@@ -31,6 +32,7 @@ public class TaggedConnection implements AutoCloseable {
         writeLock.lock();
         try {
             out.writeInt(frame.tag);
+            out.writeShort(frame.requestType);
             out.writeInt(frame.data.length);
             out.write(frame.data);
             out.flush();
@@ -39,18 +41,19 @@ public class TaggedConnection implements AutoCloseable {
         }
     }
 
-    public void send(int tag, byte[] data) throws IOException {
-        send(new Frame(tag, data));
+    public void send(int tag, short requestType, byte[] data) throws IOException {
+        send(new Frame(tag, requestType, data));
     }
 
     public Frame receive() throws IOException {
         readLock.lock();
         try {
             int tag = in.readInt();
+            short requestType = in.readShort();
             int length = in.readInt();
             byte[] data = new byte[length];
             in.readFully(data);
-            return new Frame(tag, data);
+            return new Frame(tag, requestType, data);
         } finally {
             readLock.unlock();
         }

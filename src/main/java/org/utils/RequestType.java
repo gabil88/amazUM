@@ -1,5 +1,8 @@
 package org.utils;
 
+/**
+ * Enum representing different types of requests handled by the server.
+ */
 public enum RequestType {
     Login((short)0),
     Register((short)1),
@@ -9,8 +12,7 @@ public enum RequestType {
     NewDelivery((short)5),
     ListDeliveries((short)6),
     UpdateStatus((short)7),
-    Success((short)8),
-    Error((short)9);
+    Disconnect((short)8);
 
     private final short value;
 

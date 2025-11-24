@@ -2,25 +2,41 @@ package org.Server;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.net.ServerSocket;
 import java.net.Socket;
 
-
+/**
+ * The main server class that listens for incoming client connections.
+ */
 public class Server {
 
-    private int connectedClients = 0;
     private ServerDatabase database;
-
-    /* Lock for managing the number of active clients */
+    /* 
+    private int connectedClients = 0;
+     Lock for managing the number of active clients 
     private ReentrantLock lock = new ReentrantLock();
-    /* Lock for managing client connections */
+     Lock for managing client connections 
     private ReentrantLock lockC = new ReentrantLock();
-    private Condition allowClientConnection = lockC.newCondition();
+    */
 
+    /**
+     * Initializes a Server instance with a fresh database.
+     */
     public Server() {
         this.database = new ServerDatabase();
     }
     
-    //TEste para já
+    /**
+     * Starts the Server on the specified port.
+     * 
+     * The Server class creates a {@link ServerSocket} on a specified port and waits
+     * for client connections. 
+     * 
+     * For each incoming connection, it spawns a new {@link ServerWorker} thread 
+     * to handle communication with that client.
+     * 
+     * @param port The port number on which the server will listen for client connections.
+     */
     public void start(int port) {
         try (java.net.ServerSocket serverSocket = new java.net.ServerSocket(port)) {
             System.out.println("=== Servidor Iniciado ===");
@@ -31,8 +47,8 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 
                 // Cria worker thread para cada cliente
-                ServerWorker worker = new ServerWorker(clientSocket, database);
-                new Thread(worker).start();
+                Thread worker = new Thread(new ServerWorker(clientSocket, database));
+                worker.start();
             }
             
         } catch (Exception e) {
@@ -40,8 +56,12 @@ public class Server {
         }
     }
 
+    /**
+     * The main entry point for the server application.
+     * Initializes a new Server instance and starts it on port 12345.
+     */
     public static void main(String[] args) {
         Server server = new Server();
-        server.start(8080);
+        server.start(12345);
     }
 }
