@@ -116,9 +116,46 @@ public class ClientUI {
                     }
 
                     switch(operation){
-                        case 1: 
-                        // to do
-                        break;
+                        case 1:
+                            System.out.println("Enter product name:");
+                            String productName = scanner.nextLine();
+
+                            int quantity = 0;
+                            while (true) {
+                                System.out.println("Enter quantity:");
+                                String quantityInput = scanner.nextLine();
+                                try {
+                                    quantity = Integer.parseInt(quantityInput.trim());
+                                    break;
+                                } catch (NumberFormatException e) {
+                                    System.out.println("Invalid quantity! Please enter a valid integer.");
+                                }
+                            }
+
+                            double price = 0.0;
+                            while (true) {
+                                System.out.println("Enter price:");
+                                String priceInput = scanner.nextLine();
+                                try {
+                                    price = Double.parseDouble(priceInput.trim().replace(",", "."));
+                                    break;
+                                } catch (NumberFormatException e) {
+                                    System.out.println("Invalid price! Please enter a valid number (e.g., 2.45).");
+                                }
+                            }
+
+                            boolean saleAdded = false;
+                            try {
+                                saleAdded = client.addSale(productName, quantity, price);
+                            } catch (IOException e) {
+                                System.out.println("Error adding sale: " + e.getMessage());
+                            }
+                            if (saleAdded) {
+                                System.out.println("Sale added successfully!");
+                            } else {
+                                System.out.println("Failed to add sale.");
+                            }
+                            break;
 
                         case 2: 
                         // to do

@@ -139,6 +139,29 @@ public class ClientLibrary {
         }
     }
 
+    public boolean addSale(String ProductName, int Quantity, double Price) throws IOException {
+        lock.lock();
+        try {
+            byte[] requestData;
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
+                dos.writeUTF(ProductName);
+                dos.writeInt(Quantity);
+                dos.writeDouble(Price);
+                requestData = baos.toByteArray();
+            }
+            System.out.println("Sending add event request");
+            byte[] responseData = sendWithTag(RequestType.AddSale.getValue(), requestData);
+            // Lê a resposta
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                 DataInputStream dis = new DataInputStream(bais)) {
+                return dis.readBoolean();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * Closes the connection with the server.
      *

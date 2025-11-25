@@ -2,21 +2,23 @@ package org.Server;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.ProductCatalog;
-import org.Venda;
 
 /**
  * Class that represents the database of the server, including methods for handling users/clients, products and sales.
  */
 class ServerDatabase {
-    /* */
-    ProductCatalog productCatalog;
-    /* Map that stores for each day a Map of Sales followed by its ID */
-    Map<Integer, Map<Integer, Venda>> ordersByDay;
+    Dictionary dictionary = new Dictionary();
+
+    /* Map that stores the actual day's orders */
+    Map<Integer, List<Venda>> ordersActualDay;
+    final ReentrantLock ordersLock = new ReentrantLock();
+
     /* Map that stores all registered users in the Server */
     Map<String, String> users;
+
     /* Lock to handle client authentication and registration */
     final ReentrantLock usersLock = new ReentrantLock();
     
@@ -28,20 +30,11 @@ class ServerDatabase {
      * Initializes the users HashMap
      */
     public ServerDatabase() {
-        this.productCatalog = new ProductCatalog();
-        this.ordersByDay = new HashMap<>();
+        this.dictionary = new Dictionary();
+        this.ordersActualDay = new HashMap<>();
         this.users = new HashMap<>();
     }
-
-    /**
-     * Gets the product catalog.
-     * 
-     * @return The product catalog object.
-     */
-    public ProductCatalog getProductCatalog() {
-        return this.productCatalog;
-    }
-
+    
     /**
      * Gets the map of users/clients.
      * 
@@ -72,25 +65,15 @@ class ServerDatabase {
         users.put(username, password);
     }
 
-    /**
-     * Gets the orders by day.
-     * 
-     * @return The map of orders by day.
-     */
-    public Map<Integer, Map<Integer, Venda>> getOrdersByDay() {
-        return this.ordersByDay;
+    public void addVenda(Venda venda) {
+        ordersLock.lock();
+        try {
+            int id = venda.getProductId();
+            ordersActualDay.putIfAbsent(id, new ArrayList<>());
+            ordersActualDay.get(id).add(venda);
+        } finally {
+            ordersLock.unlock();
+        }
     }
-
-    /**
-     * Inserts an order given the day of the order, its ID and the Sale order object.
-     * 
-     * @param day       The day where the order was requested
-     * @param orderId   The order's ID
-     * @param order     The order's sale object.
-     */
-    public void addOrder(int day, int orderId, Venda order) {
-        ordersByDay.putIfAbsent(day, new HashMap<>());
-        ordersByDay.get(day).put(orderId, order);
-    }
-
 }
+

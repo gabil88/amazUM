@@ -1,4 +1,4 @@
-package org;
+package org.Server;
 
 import java.io.*;
 
@@ -27,10 +27,10 @@ public class Venda implements Serializable {
     }
     
     // Serialização PARA REDE (com nome do produto - maior mas seguro)
-    public byte[] toBytesForNetwork(ProductCatalog catalog) throws IOException {
+    public byte[] toBytesForNetwork(Dictionary dictionary) throws IOException {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
-            dos.writeUTF(catalog.getProductName(productId)); // Nome completo
+            dos.writeUTF(dictionary.get(productId));
             dos.writeInt(quantidade);
             dos.writeDouble(preco);
             dos.flush();
@@ -39,7 +39,7 @@ public class Venda implements Serializable {
     }
     
     // Desserialização DA REDE (sem precisar de catálogo sincronizado)
-    public static Venda fromBytesNetwork(byte[] data) throws IOException {
+    public static Venda fromBytesNetwork(byte[] data, Dictionary dictionary) throws IOException {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
              DataInputStream dis = new DataInputStream(bais)) {
             String productName = dis.readUTF();
@@ -47,7 +47,7 @@ public class Venda implements Serializable {
             double preco = dis.readDouble();
             
             // Cliente recebe o nome, não precisa do ID
-            Venda venda = new Venda(0, quantidade, preco); // ID temporário
+            Venda venda = new Venda(dictionary.get(productName), quantidade, preco); // ID temporário
             return venda;
         }
     }
@@ -65,6 +65,8 @@ public class Venda implements Serializable {
     }
     
     public int getProductId() { return productId; }
+
     public int getQuantidade() { return quantidade; }
+
     public double getPreco() { return preco; }
 }

@@ -102,6 +102,10 @@ class ServerWorker implements Runnable {
                     register(in, out);
                     break;
                 // to do: remaining cases
+                case AddSale:
+                    handleAddSale(in, out);
+                    break;
+
                 default:
                     // Pedido desconhecido
                     out.writeUTF("Unknown request type");
@@ -179,5 +183,25 @@ class ServerWorker implements Runnable {
             database.usersLock.unlock();
         }
 
+    }
+
+    /**
+     * Handles a request to add a sale (Venda) to the database.
+     *
+     * @param in    The input stream containing product name, quantity, and price.
+     * @param out   The output stream to write the result of the operation.
+     *
+     * @throws IOException If an I/O error occurs during reading or writing.
+     */
+    private void handleAddSale(DataInputStream in, DataOutputStream out) throws IOException {
+        String productName = in.readUTF();
+        int quantity = in.readInt();
+        double price = in.readDouble();
+
+        Venda venda = new Venda(database.dictionary.get(productName), quantity, price);
+        database.addVenda(venda);
+
+        out.writeBoolean(true);
+        out.writeUTF("Sale added successfully");
     }
 }
