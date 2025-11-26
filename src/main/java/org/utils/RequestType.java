@@ -7,7 +7,9 @@ public enum RequestType {
     Login((short)0),
     Register((short)1),
     AddSale((short)2),
-    Disconnect((short)8);
+    Disconnect((short)8),
+    EndDay((short) 4), // Use the next available short value
+    Confirmation((short)99); // ou outro valor não usado
 
     private final short value;
 

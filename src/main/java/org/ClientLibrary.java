@@ -31,17 +31,28 @@ public class ClientLibrary {
      * @param host The server hostname.
      * @param port The server port.
      */
-    public ClientLibrary(String host, int port) {
-        try{
-            Socket socket = new Socket(host, port);
-            this.taggedConnection = new TaggedConnection(socket);
-            this.demultiplexer = new Demultiplexer(taggedConnection);
-            this.demultiplexer.start();
-            System.out.println("Connected to the server: " + host + ":" + port);
-        } catch (Exception e) {
-            System.err.println("Error Connecting: " + e.getMessage());
-            e.printStackTrace();
+    public ClientLibrary(String host, int port) throws IOException {
+        Socket socket = new Socket(host, port);
+        this.taggedConnection = new TaggedConnection(socket);
+        this.demultiplexer = new Demultiplexer(taggedConnection);
+        this.demultiplexer.start();
+
+        // Espera pela confirmação do servidor
+        TaggedConnection.Frame frame = taggedConnection.receive();
+        if (frame.requestType == RequestType.Confirmation.getValue()) {
+            boolean accepted = frame.data[0] != 0;
+            if (!accepted) {
+                System.out.println("Connection rejected: server full.");
+                socket.close();
+                throw new IOException("Connection rejected by server.");
+            }
+        } else {
+            System.out.println("Unexpected response from server.");
+            socket.close();
+            throw new IOException("Unexpected response from server.");
         }
+
+        System.out.println("Connected to the server: " + host + ":" + port);
     }
 
     /**
@@ -195,6 +206,22 @@ public class ClientLibrary {
                 System.out.println("Server response: " + message);
             }
 
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public String endDay() throws IOException {
+        lock.lock();
+        try {
+            byte[] requestData = new byte[0]; // No data needed
+            byte[] responseData = sendWithTag(RequestType.EndDay.getValue(), requestData);
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                 DataInputStream dis = new DataInputStream(bais)) {
+                boolean success = dis.readBoolean();
+                String message = dis.readUTF();
+                return success ? message : "Failed to end day.";
+            }
         } finally {
             lock.unlock();
         }

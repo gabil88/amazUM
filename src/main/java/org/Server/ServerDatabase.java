@@ -5,11 +5,18 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.locks.ReentrantLock;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.IOException;
 
 /**
  * Class that represents the database of the server, including methods for handling users/clients, products and sales.
  */
 class ServerDatabase {
+    private int currentDay = 0;
+
     Dictionary dictionary = new Dictionary();
 
     /* Map that stores the actual day's orders */
@@ -71,6 +78,34 @@ class ServerDatabase {
             int id = venda.getProductId();
             ordersActualDay.putIfAbsent(id, new ArrayList<>());
             ordersActualDay.get(id).add(venda);
+        } finally {
+            ordersLock.unlock();
+        }
+    }
+    
+    public int getCurrentDay() {
+        return currentDay;
+    }
+
+    public void endDay() {
+        ordersLock.lock();
+        try {
+            if (!ordersActualDay.isEmpty()) {
+                // Garante que a pasta existe
+                Files.createDirectories(Paths.get("storage"));
+            
+                // Serializa as vendas do dia para o ficheiro
+                try (ObjectOutputStream oos = new ObjectOutputStream(
+                        new FileOutputStream("storage/orders_day_" + currentDay + ".sales"))) {
+                    oos.writeObject(ordersActualDay);
+                } catch (IOException e) {
+                    System.err.println("Error saving orders for day " + currentDay + ": " + e.getMessage());
+                }
+            }
+            ordersActualDay = new HashMap<>();
+            currentDay++;
+        } catch (IOException e) {
+            System.err.println("Error creating storage directory: " + e.getMessage());
         } finally {
             ordersLock.unlock();
         }

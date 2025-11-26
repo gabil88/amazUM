@@ -14,8 +14,13 @@ public class ClientUI {
      */
      public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
-            // Create a client library instance that connects to the server
-            ClientLibrary client = new ClientLibrary("localhost", 12345);
+            ClientLibrary client;
+            try {
+                client = new ClientLibrary("localhost", 12345);
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+                return; // Termina o programa sem stack trace
+            }
 
             int choice = 0;
             boolean validChoice = false;
@@ -99,18 +104,19 @@ public class ClientUI {
                         System.out.println("3. Sales Volume");
                         System.out.println("4. Sale Average Price");
                         System.out.println("5. Sale Max Price");
-                        System.out.println("6. Exit");
+                        System.out.println("6. End Day");
+                        System.out.println("7. Exit");
 
                         try {
                             operation = scanner.nextInt();
                             scanner.nextLine();
-                            if (operation >= 1 && operation <= 6) {
+                            if (operation >= 1 && operation <= 7) {
                                 validChoice = true;
                             } else {
                                 System.out.println("Invalid operation! Please choose a valid operation.");
                             }
                         } catch (InputMismatchException e) {
-                            System.out.println("Invalid input! Please enter a valid number between 1 and 5.");
+                            System.out.println("Invalid input! Please enter a valid number between 1 and 7.");
                             scanner.nextLine();
                         }
                     }
@@ -173,7 +179,16 @@ public class ClientUI {
                         // to do
                         break;
 
-                        case 6:
+                        case 6: // End Day operation
+                            try {
+                                String result = client.endDay();
+                                System.out.println(result);
+                            } catch (IOException e) {
+                                System.out.println("Error ending day: " + e.getMessage());
+                            }
+                            break;
+
+                        case 7:
                             running = false;
                             for (Thread t : threads) {
                                 try {

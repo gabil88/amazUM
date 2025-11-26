@@ -105,6 +105,9 @@ class ServerWorker implements Runnable {
                 case AddSale:
                     handleAddSale(in, out);
                     break;
+                case EndDay:
+                    handleEndDay(in, out);
+                    break;
 
                 default:
                     // Pedido desconhecido
@@ -203,5 +206,11 @@ class ServerWorker implements Runnable {
 
         out.writeBoolean(true);
         out.writeUTF("Sale added successfully");
+    }
+
+    private void handleEndDay(DataInputStream in, DataOutputStream out) throws IOException {
+        database.endDay();
+        out.writeBoolean(true); // Confirmation
+        out.writeUTF("Day ended. Sales saved to storage.");
     }
 }

@@ -1,9 +1,10 @@
 package org.Server;
 
-import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.net.ServerSocket;
 import java.net.Socket;
+import org.TaggedConnection;
+import org.utils.RequestType;
 
 /**
  * The main server class that listens for incoming client connections.
@@ -11,13 +12,9 @@ import java.net.Socket;
 public class Server {
 
     private ServerDatabase database;
-    /* 
-    private int connectedClients = 0;
-     Lock for managing the number of active clients 
-    private ReentrantLock lock = new ReentrantLock();
-     Lock for managing client connections 
-    private ReentrantLock lockC = new ReentrantLock();
-    */
+    private static final int MAX_CLIENTS = 2;
+    private final Thread[] workers = new Thread[MAX_CLIENTS];
+    private final ReentrantLock lock = new ReentrantLock();
 
     /**
      * Initializes a Server instance with a fresh database.
@@ -38,22 +35,48 @@ public class Server {
      * @param port The port number on which the server will listen for client connections.
      */
     public void start(int port) {
-        try (java.net.ServerSocket serverSocket = new java.net.ServerSocket(port)) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("=== Servidor Iniciado ===");
             System.out.println("Porta: " + port);
             System.out.println("Aguardando conexões...\n");
-            
+
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                
-                // Cria worker thread para cada cliente
-                Thread worker = new Thread(new ServerWorker(clientSocket, database));
-                worker.start();
+
+                lock.lock();
+                try {
+                    int slot = findFreeSlot();
+                    TaggedConnection tc = new TaggedConnection(clientSocket);
+                    if (slot == -1) {
+                        System.out.println("Limite de clientes atingido. Conexão rejeitada.");
+                        // Send confirmation: rejected
+                        tc.send(RequestType.Confirmation.getValue(), RequestType.Confirmation.getValue(), new byte[]{0});
+                        tc.close();
+                        clientSocket.close();
+                    } else {
+                        // Send confirmation: accepted
+                        tc.send(RequestType.Confirmation.getValue(), RequestType.Confirmation.getValue(), new byte[]{1});
+                        workers[slot] = new Thread(() -> {
+                            new ServerWorker(clientSocket, database).run();
+                        });
+                        workers[slot].start();
+                    }
+                } finally {
+                    lock.unlock();
+                }
             }
-            
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private int findFreeSlot() {
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (workers[i] == null || !workers[i].isAlive()) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**
