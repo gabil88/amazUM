@@ -89,26 +89,40 @@ class ServerDatabase {
     }
     
     public void endDay() {
+        Map<Integer, List<Venda>> dataToSave;
+        int dayToSave;
+
         ordersLock.lock();
         try {
-            if (!ordersActualDay.isEmpty()) {
-                // Garante que a pasta existe
+            // 1. "Swap" atómico do estado
+            // Captura os dados atuais para uma variável local
+            dataToSave = this.ordersActualDay;
+            dayToSave = this.currentDay;
+
+            // Reseta o estado global para o novo dia
+            this.ordersActualDay = new HashMap<>();
+            this.currentDay++;
+            
+            System.out.println("Dia avançado para: " + this.currentDay);
+
+        } finally {
+            ordersLock.unlock(); // Liberta o lock imediatamente
+        }
+
+        // 2. Operação de I/O pesada feita SEM bloquear os clientes
+        // Como 'dataToSave' é uma variável local e a referência global já mudou,
+        // nenhuma outra thread vai mexer neste mapa. É seguro.
+        if (!dataToSave.isEmpty()) {
+            try {
                 Files.createDirectories(Paths.get("storage"));
             
-                // Serializa as vendas do dia para o ficheiro
                 try (ObjectOutputStream oos = new ObjectOutputStream(
-                        new FileOutputStream("storage/orders_day_" + currentDay + ".sales"))) {
-                    oos.writeObject(ordersActualDay);
-                } catch (IOException e) {
-                    System.err.println("Error saving orders for day " + currentDay + ": " + e.getMessage());
+                        new FileOutputStream("storage/orders_day_" + dayToSave + ".sales"))) {
+                    oos.writeObject(dataToSave);
                 }
+            } catch (IOException e) {
+                System.err.println("Error saving orders for day " + dayToSave + ": " + e.getMessage());
             }
-            ordersActualDay = new HashMap<>();
-            currentDay++;
-        } catch (IOException e) {
-            System.err.println("Error creating storage directory: " + e.getMessage());
-        } finally {
-            ordersLock.unlock();
         }
     }
 }
