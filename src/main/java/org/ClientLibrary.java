@@ -184,7 +184,6 @@ public class ClientLibrary {
         ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
         DataInputStream dis = new DataInputStream(bais);
         boolean success = dis.readBoolean();
-        String message = dis.readUTF();
-        return success ? message : "Failed to end day.";
+        return success ? "Day ended successfully." : "Failed to end day.";
     }
 }

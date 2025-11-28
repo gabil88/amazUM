@@ -86,7 +86,7 @@ class ServerDatabase {
         }
     }
     
-    public void endDay() {
+    public boolean endDay() {
         Map<Integer, List<Venda>> dataToSave;
         int dayToSave;
 
@@ -110,51 +110,52 @@ class ServerDatabase {
         // 2. Operação de I/O pesada feita SEM bloquear os clientes
         // Como 'dataToSave' é uma variável local e a referência global já mudou,
         // nenhuma outra thread vai mexer neste mapa. É seguro.
-        serializeDay(dataToSave, dayToSave);
-        
+        try {
+            serializeDay(dataToSave, dayToSave);
+            return true;
+        } catch (IOException e) {
+            System.err.println("Erro ao salvar vendas do dia " + dayToSave + ": " + e.getMessage());
+            return false;
+        }
     }
 
     // Em org.Server.ServerDatabase
 
-    public void serializeDay(Map<Integer, List<Venda>> vendas, int dayToSave) {
+    public void serializeDay(Map<Integer, List<Venda>> vendas, int dayToSave) throws IOException {
         // Se não há vendas, não cria ficheiro
         if (vendas.isEmpty()) return;
 
-        try {
-            Files.createDirectories(Paths.get("storage"));
+        Files.createDirectories(Paths.get("storage"));
 
-            // Usamos DataOutputStream + BufferedOutputStream para eficiência máxima
-            try (DataOutputStream dos = new DataOutputStream(
-                    new java.io.BufferedOutputStream(new FileOutputStream("storage/orders_day_" + dayToSave + ".sales")))) {
+        // Usamos DataOutputStream + BufferedOutputStream para eficiência máxima
+        try (DataOutputStream dos = new DataOutputStream(
+                new java.io.BufferedOutputStream(new FileOutputStream("storage/orders_day_" + dayToSave + ".sales")))) {
 
-                // 1. Escrevemos quantos produtos distintos existem no total (ajuda na leitura)
-                dos.writeInt(vendas.size());
+            // 1. Escrevemos quantos produtos distintos existem no total (ajuda na leitura)
+            dos.writeInt(vendas.size());
 
-                // 2. Iteramos sobre o mapa
-                for (Map.Entry<Integer, List<Venda>> entry : vendas.entrySet()) {
-                    int productId = entry.getKey();
-                    List<Venda> listaVendas = entry.getValue();
+            // 2. Iteramos sobre o mapa
+            for (Map.Entry<Integer, List<Venda>> entry : vendas.entrySet()) {
+                int productId = entry.getKey();
+                List<Venda> listaVendas = entry.getValue();
 
-                    // Escreve o ID do produto (Ex: 3)
-                    dos.writeInt(productId);
+                // Escreve o ID do produto (Ex: 3)
+                dos.writeInt(productId);
 
-                    // IMPORTANTE: Escreve o número de vendas para este produto
-                    // Sem isto, não sabes quando parar de ler as vendas do produto 3!
-                    dos.writeInt(listaVendas.size());
+                // IMPORTANTE: Escreve o número de vendas para este produto
+                // Sem isto, não sabes quando parar de ler as vendas do produto 3!
+                dos.writeInt(listaVendas.size());
 
-                    // Escreve as vendas seguidas (Qtd, Preço, Qtd, Preço...)
-                    for (Venda v : listaVendas) {
-                        dos.writeInt(v.getQuantidade()); // Ex: 5
-                        dos.writeDouble(v.getPreco());   // Ex: 2.5
-                    }
+                // Escreve as vendas seguidas (Qtd, Preço, Qtd, Preço...)
+                for (Venda v : listaVendas) {
+                    dos.writeInt(v.getQuantidade()); // Ex: 5
+                    dos.writeDouble(v.getPreco());   // Ex: 2.5
                 }
-                
-                // No final fica
-                // [3] [3] [5][2.5] [7][5.6] [9][9.00]
-                // (ID) (Nº) (Venda1) (Venda2) (Venda3)
             }
-        } catch (IOException e) {
-            System.err.println("Error saving orders for day " + dayToSave + ": " + e.getMessage());
+            
+            // No final fica
+            // [3] [3] [5][2.5] [7][5.6] [9][9.00]
+            // (ID) (Nº) (Venda1) (Venda2) (Venda3)
         }
     }
 

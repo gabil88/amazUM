@@ -75,8 +75,8 @@ class ServerWorker implements Runnable{
                         out.writeBoolean(saleAdded);
                         break;
                     case EndDay:
-                        database.endDay();
-                        out.writeBoolean(true); // Confirmation
+                        boolean dayEnded = database.endDay();
+                        out.writeBoolean(dayEnded);
                         break;
 
                     case Disconnect:
