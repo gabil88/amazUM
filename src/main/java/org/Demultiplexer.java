@@ -22,20 +22,21 @@ public class Demultiplexer implements AutoCloseable {
         this.conditions = new HashMap<>();
     }
 
-    // Inicia thread que recebe mensagens do servidor continuamente
+// Em org/Demultiplexer.java
+
     public void start() {
         receiverThread = new Thread(() -> {
             try {
                 while (running) {
-                    // Recebe frame do servidor
+                    // Tenta ler. Se o socket fechar, lança exceção aqui.
                     TaggedConnection.Frame frame = conn.receive();
                     
                     lock.lock();
                     try {
-                        // Guarda a resposta
+                        // Ignora mensagens se já estivermos a fechar
+                        if (!running) return;
+
                         responses.put(frame.tag, frame.data);
-                        
-                        // Se há uma thread à espera desta tag, acorda-a
                         Condition condition = conditions.get(frame.tag);
                         if (condition != null) {
                             condition.signal();
@@ -45,9 +46,17 @@ public class Demultiplexer implements AutoCloseable {
                     }
                 }
             } catch (IOException e) {
-                if (running) { // Só mostra erro se não foi close() intencional
+                // Se o erro for EOF, significa que o servidor fechou a conexão.
+                // Se 'running' for false, fomos nós que fechámos.
+                // Em ambos os casos, saímos silenciosamente.
+                if (running && !(e instanceof java.io.EOFException)) {
                     e.printStackTrace();
                 }
+            } finally {
+                // Garante que se a thread morrer, tudo é limpo
+                try {
+                    close(); 
+                } catch (IOException ignored) {}
             }
         });
         receiverThread.start();
@@ -62,40 +71,63 @@ public class Demultiplexer implements AutoCloseable {
         send(new TaggedConnection.Frame(tag, requestType, data));
     }
 
-    // Espera por resposta com a tag especificada
-    public byte[] receive(int tag) throws InterruptedException {
+
+    public byte[] receive(int tag) throws IOException, InterruptedException {
         lock.lock();
         try {
-            // Se já recebemos a resposta, retorna imediatamente
+            // Fast-path: resposta já chegou
             byte[] data = responses.remove(tag);
-            if (data != null) {
-                conditions.remove(tag);
-                return data;
-            }
+            if (data != null) return data;
             
-            // Caso contrário, cria condition e espera
+            // Regista a espera
             Condition condition = lock.newCondition();
             conditions.put(tag, condition);
             
-            // Espera até a thread de receção acordar esta thread
-            while (!responses.containsKey(tag)) {
-                condition.await();
+            try {
+                // Ciclo de espera robusto:
+                // Continua a dormir SÓ SE não houver resposta E o sistema ainda estiver a correr
+                while (!responses.containsKey(tag) && running) {
+                    condition.await();
+                }
+                
+                // Se acordou e o sistema fechou (running == false), lança erro
+                if (!responses.containsKey(tag) && !running) {
+                    throw new IOException("Conexão fechada enquanto aguardava resposta.");
+                }
+                
+                return responses.remove(tag);
+                
+            } finally {
+                // Limpeza garantida
+                conditions.remove(tag);
             }
-            
-            // Quando acordar, pega a resposta e limpa
-            data = responses.remove(tag);
-            conditions.remove(tag);
-            return data;
-            
         } finally {
             lock.unlock();
         }
     }
 
+
     public void close() throws IOException {
-        running = false;
+        lock.lock();
+        try {
+            // 1. Marcar como fechado
+            if (!running) return; // Já estava fechado
+            running = false;
+            
+            // 2. Acordar TODAS as threads que estão no 'await()'
+            // Isto impede que o cliente fique bloqueado infinitamente
+            conditions.forEach((tag, condition) -> condition.signalAll());
+            conditions.clear();
+            
+        } finally {
+            lock.unlock();
+        }
+
+        // 3. Fechar a conexão física (vai causar exceção na receiverThread)
         conn.close();
-        if (receiverThread != null) {
+        
+        // 4. (Opcional) Interromper a thread para ser mais rápido
+        if (receiverThread != null && Thread.currentThread() != receiverThread) {
             receiverThread.interrupt();
         }
     }

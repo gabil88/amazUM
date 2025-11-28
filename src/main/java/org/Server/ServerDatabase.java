@@ -42,25 +42,20 @@ class ServerDatabase {
         this.users = new HashMap<>();
     }
     
-    /**
-     * Gets the map of users/clients.
-     * 
-     * @return The map of users/clients.
-     */
-    public Map<String, String> getUsers(){
-        return this.users;
+
+    public boolean authenticate(String username, String password){
+        this.usersLock.lock();
+        try {
+            String storedPassword = this.users.get(username);
+            if (storedPassword == null) {
+                return false; // User does not exist
+            }
+            return storedPassword.equals(password);
+        } finally {
+            this.usersLock.unlock();
+        }
     }
 
-    /**
-     * Given an username verifies if it already exists in the users map.
-     * 
-     * @param username The username of the user/client.
-     * 
-     * @return True if the username already exists, False otherwise.
-     */
-    public boolean userAlreadyExists(String username){
-        return this.users.containsKey(username);
-    }
 
     /**
      * Registers an user given its username and password.
@@ -68,25 +63,31 @@ class ServerDatabase {
      * @param username The username of the user/client.
      * @param password The password of the user/client.
      */
-    public void registerUser(String username, String password) {
-        users.put(username, password);
+    public boolean registerUser(String username, String password) {
+        this.usersLock.lock();
+        try {
+            if (this.users.containsKey(username)) {
+                return false; // User already exists
+            }
+            users.put(username, password);
+            return true;
+        } finally {
+            this.usersLock.unlock();
+        }
     }
+        
 
-    public void addVenda(Venda venda) {
+    public boolean addSale(String produto, int quantidade, double preco) {
         ordersLock.lock();
         try {
-            int id = venda.getProductId();
-            ordersActualDay.putIfAbsent(id, new ArrayList<>());
-            ordersActualDay.get(id).add(venda);
+            Venda venda = new Venda(dictionary.get(produto), quantidade, preco);
+            ordersActualDay.computeIfAbsent(currentDay, k -> new ArrayList<>()).add(venda);
+            return true;
         } finally {
             ordersLock.unlock();
         }
     }
     
-    public int getCurrentDay() {
-        return currentDay;
-    }
-
     public void endDay() {
         ordersLock.lock();
         try {

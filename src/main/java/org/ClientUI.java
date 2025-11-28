@@ -199,7 +199,7 @@ public class ClientUI {
                                 }
                             }
                             try {
-                                client.sendDisconnectMessage();
+                                client.close();
                             } catch (IOException e) {
                                 System.out.println("Error during disconnect: " + e.getMessage());
                             }
