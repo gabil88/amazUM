@@ -23,33 +23,29 @@ public class ClientLibrary {
     /* Unique identifier for each request */
     private int tag = 0;
 
-    /**
-     * Constructor to initialize the Client Library given server's host and port.
-     * 
-     * @param host The server hostname.
-     * @param port The server port.
-     */
     public ClientLibrary(String host, int port) throws IOException {
         Socket socket = new Socket(host, port);
-        TaggedConnection taggedConnection = new TaggedConnection(socket);
-        this.demultiplexer = new Demultiplexer(taggedConnection);
-
-        this.demultiplexer.start();
-
-        // Espera pela confirmação do servidor
+        TaggedConnection taggedConnection = new TaggedConnection(socket); 
+        
+        // 1. Receber a confirmação PRIMEIRO
         TaggedConnection.Frame frame = taggedConnection.receive();
+        
         if (frame.requestType == RequestType.Confirmation.getValue()) {
             boolean accepted = frame.data[0] != 0;
             if (!accepted) {
                 System.out.println("Connection rejected: server full.");
-                socket.close();
+                socket.close(); // <--- Correto: Fechar recurso
                 throw new IOException("Connection rejected by server.");
             }
         } else {
             System.out.println("Unexpected response from server.");
-            socket.close();
+            socket.close(); // <--- Correto: Fechar recurso
             throw new IOException("Unexpected response from server.");
         }
+
+        // 2. Só agora, que está tudo confirmado, iniciamos o sistema de multiplexagem
+        this.demultiplexer = new Demultiplexer(taggedConnection);
+        this.demultiplexer.start();
 
         System.out.println("Connected to the server: " + host + ":" + port);
     }
