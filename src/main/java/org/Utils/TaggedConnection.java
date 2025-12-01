@@ -1,4 +1,4 @@
-package org;
+package org.Utils;
 
 import java.io.*;
 import java.net.Socket;

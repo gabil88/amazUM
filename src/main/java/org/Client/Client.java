@@ -1,4 +1,5 @@
-package org;
+package org.Client;
+
 /**
  * The Client class serves as the entry point for the client-side application.
  * Initializes the Client UI.

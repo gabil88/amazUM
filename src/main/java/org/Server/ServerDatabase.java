@@ -9,8 +9,7 @@ import java.io.*;
 import java.nio.file.*;
 
 /**
- * Class that represents the database of the server, including methods for
- * handling users/clients, products and sales.
+ * Class that represents the database of the server, including methods for handling users/clients, products and sales.
  */
 class ServerDatabase {
     private int currentDay = 0;
@@ -18,7 +17,7 @@ class ServerDatabase {
     Dictionary dictionary = new Dictionary();
 
     /* Map that stores the actual day's orders */
-    Map<Integer, List<Venda>> ordersActualDay;
+    Map<Integer, List<Venda>> ordersCurDay;
     final ReentrantLock ordersLock = new ReentrantLock();
 
     /* Map that stores all registered users in the Server */
@@ -26,7 +25,7 @@ class ServerDatabase {
 
     /* Lock to handle client authentication and registration */
     final ReentrantLock usersLock = new ReentrantLock();
-
+    
     /**
      * Default constructor for the ServerDatabase class.
      * 
@@ -36,15 +35,12 @@ class ServerDatabase {
      */
     public ServerDatabase() {
         this.dictionary = new Dictionary();
-        this.ordersActualDay = new HashMap<>();
+        this.ordersCurDay = new HashMap<>();
         this.users = new HashMap<>();
-
-        // Load state from disk
-        loadUsers();
-        loadDictionary();
     }
+    
 
-    public boolean authenticate(String username, String password) {
+    public boolean authenticate(String username, String password){
         this.usersLock.lock();
         try {
             String storedPassword = this.users.get(username);
@@ -56,6 +52,7 @@ class ServerDatabase {
             this.usersLock.unlock();
         }
     }
+
 
     /**
      * Registers an user given its username and password.
@@ -75,19 +72,20 @@ class ServerDatabase {
             this.usersLock.unlock();
         }
     }
+        
 
     public boolean addSale(String produto, int quantidade, double preco) {
         ordersLock.lock();
         try {
             int id = dictionary.get(produto);
             Venda venda = new Venda(id, quantidade, preco);
-            ordersActualDay.computeIfAbsent(id, k -> new ArrayList<>()).add(venda);
+            ordersCurDay.computeIfAbsent(id, k -> new ArrayList<>()).add(venda);
             return true;
         } finally {
             ordersLock.unlock();
         }
     }
-
+    
     public boolean endDay() {
         Map<Integer, List<Venda>> dataToSave;
         int dayToSave;
@@ -96,13 +94,13 @@ class ServerDatabase {
         try {
             // 1. "Swap" atómico do estado
             // Captura os dados atuais para uma variável local
-            dataToSave = this.ordersActualDay;
+            dataToSave = this.ordersCurDay;
             dayToSave = this.currentDay;
 
             // Reseta o estado global para o novo dia
-            this.ordersActualDay = new HashMap<>();
+            this.ordersCurDay = new HashMap<>();
             this.currentDay++;
-
+            
             System.out.println("Dia avançado para: " + this.currentDay);
 
         } finally {
@@ -114,11 +112,6 @@ class ServerDatabase {
         // nenhuma outra thread vai mexer neste mapa. É seguro.
         try {
             serializeDay(dataToSave, dayToSave);
-
-            // Save other state
-            saveUsers();
-            saveDictionary();
-
             return true;
         } catch (IOException e) {
             System.err.println("Erro ao salvar vendas do dia " + dayToSave + ": " + e.getMessage());
@@ -126,12 +119,37 @@ class ServerDatabase {
         }
     }
 
+    public double getAveragePrice(String productName, int days) {
+        int productId = dictionary.get(productName);
+        if (productId == -1) {
+            return 0.0; // Produto não existe
+        }
+
+        double totalPrice = 0.0;
+        int totalCount = 0;
+
+        for (int day = currentDay - days; day < currentDay; day++) {
+            if (day < 0) continue; // Ignora dias negativos
+
+            Map<Integer, List<Venda>> allData = deserializeDay(day);
+            List<Venda> vendas = allData.get(productId);
+
+            if (vendas != null) {
+                for (Venda v : vendas) {
+                    totalPrice += v.getPreco();
+                    totalCount += v.getQuantidade();
+                }
+            }
+        }
+
+        return totalCount == 0 ? 0.0 : totalPrice / totalCount;
+    }
+
     // Em org.Server.ServerDatabase
 
     public void serializeDay(Map<Integer, List<Venda>> vendas, int dayToSave) throws IOException {
         // Se não há vendas, não cria ficheiro
-        if (vendas.isEmpty())
-            return;
+        if (vendas.isEmpty()) return;
 
         Files.createDirectories(Paths.get("storage"));
 
@@ -157,10 +175,10 @@ class ServerDatabase {
                 // Escreve as vendas seguidas (Qtd, Preço, Qtd, Preço...)
                 for (Venda v : listaVendas) {
                     dos.writeInt(v.getQuantidade()); // Ex: 5
-                    dos.writeDouble(v.getPreco()); // Ex: 2.5
+                    dos.writeDouble(v.getPreco());   // Ex: 2.5
                 }
             }
-
+            
             // No final fica
             // [3] [3] [5][2.5] [7][5.6] [9][9.00]
             // (ID) (Nº) (Venda1) (Venda2) (Venda3)
@@ -197,7 +215,7 @@ class ServerDatabase {
                 for (int j = 0; j < numVendas; j++) {
                     int quantidade = dis.readInt();
                     double preco = dis.readDouble();
-
+                    
                     // Reconstrói o objeto Venda
                     // Nota: O ID é passado aqui porque o construtor de Venda o pede
                     listaVendas.add(new Venda(productId, quantidade, preco));
@@ -216,108 +234,52 @@ class ServerDatabase {
     }
 
     /**
-     * Retrieves data from the last N days, including the current in-memory day.
-     * 
-     * @param n The number of days to look back.
-     * @return A map containing the combined sales data.
+     * Populates the database with test data for testing purposes.
+     * Creates sample users, products, and sales across multiple days.
      */
-    public Map<Integer, List<Venda>> getNDaysData(int n) {
-        Map<Integer, List<Venda>> combinedData = new HashMap<>();
+    public void populateTestData() {
+        System.out.println("=== Populating test data ===");
 
-        // 1. Get current day data (in-memory)
-        this.ordersLock.lock();
-        try {
-            for (Map.Entry<Integer, List<Venda>> entry : this.ordersActualDay.entrySet()) {
-                // Deep copy or new list to avoid concurrent modification issues if we were to
-                // modify it later
-                // But since we are just reading and putting into a new map, a new ArrayList is
-                // sufficient
-                combinedData.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        // 1. Add test users
+        registerUser("admin", "admin123");
+        registerUser("user1", "pass1");
+        registerUser("user2", "pass2");
+        System.out.println("✓ Added 3 test users");
+
+        // 2. Define test products
+        String[] products = {"banana", "apple", "orange", "milk", "bread", "cheese", "water", "juice"};
+
+        // 3. Simulate multiple days of sales
+        int numDays = 5;
+        
+        for (int day = 0; day < numDays; day++) {
+            System.out.println("Generating sales for day " + day + "...");
+            
+            // Add random sales for each day
+            for (String product : products) {
+                // Random number of sales per product (1-5)
+                int numSales = (int) (Math.random() * 5) + 1;
+                
+                for (int i = 0; i < numSales; i++) {
+                    int quantity = (int) (Math.random() * 10) + 1;  // 1-10 units
+                    double price = Math.round((Math.random() * 10 + 0.5) * 100.0) / 100.0; // 0.50 - 10.50
+                    addSale(product, quantity, price);
+                }
             }
-        } finally {
-            this.ordersLock.unlock();
-        }
-
-        // 2. Get past days data (from disk)
-        // We want (N-1) past days.
-        for (int i = 1; i < n; i++) {
-            int dayToLoad = this.currentDay - i;
-            if (dayToLoad < 0)
-                break; // Stop if we reach before day 0
-
-            Map<Integer, List<Venda>> pastDayData = deserializeDay(dayToLoad);
-
-            // Merge logic
-            for (Map.Entry<Integer, List<Venda>> entry : pastDayData.entrySet()) {
-                int productId = entry.getKey();
-                List<Venda> pastSales = entry.getValue();
-
-                combinedData.merge(productId, pastSales, (existingSales, newSales) -> {
-                    existingSales.addAll(newSales);
-                    return existingSales;
-                });
+            
+            // End day to persist sales (except for the last day - keep some in memory)
+            if (day < numDays - 1) {
+                endDay();
             }
         }
 
-        return combinedData;
+        System.out.println("=== Test data population complete ===");
+        System.out.println("Current day: " + currentDay);
+        System.out.println("Products in dictionary: " + products.length);
+        System.out.println("Users registered: 3");
+        System.out.println("Days with historical data: " + (numDays - 1));
+        System.out.println("Current day has sales in memory: yes");
     }
 
-    public void saveUsers() {
-        this.usersLock.lock();
-        try (DataOutputStream dos = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream("storage/users.dat")))) {
-            dos.writeInt(users.size());
-            for (Map.Entry<String, String> entry : users.entrySet()) {
-                dos.writeUTF(entry.getKey());
-                dos.writeUTF(entry.getValue());
-            }
-        } catch (IOException e) {
-            System.err.println("Error saving users: " + e.getMessage());
-        } finally {
-            this.usersLock.unlock();
-        }
-    }
-
-    public void loadUsers() {
-        Path path = Paths.get("storage/users.dat");
-        if (!Files.exists(path))
-            return;
-
-        this.usersLock.lock();
-        try (DataInputStream dis = new DataInputStream(
-                new BufferedInputStream(new FileInputStream("storage/users.dat")))) {
-            int size = dis.readInt();
-            for (int i = 0; i < size; i++) {
-                String username = dis.readUTF();
-                String password = dis.readUTF();
-                users.put(username, password);
-            }
-        } catch (IOException e) {
-            System.err.println("Error loading users: " + e.getMessage());
-        } finally {
-            this.usersLock.unlock();
-        }
-    }
-
-    public void saveDictionary() {
-        try (DataOutputStream dos = new DataOutputStream(
-                new BufferedOutputStream(new FileOutputStream("storage/dictionary.dat")))) {
-            dictionary.serialize(dos);
-        } catch (IOException e) {
-            System.err.println("Error saving dictionary: " + e.getMessage());
-        }
-    }
-
-    public void loadDictionary() {
-        Path path = Paths.get("storage/dictionary.dat");
-        if (!Files.exists(path))
-            return;
-
-        try (DataInputStream dis = new DataInputStream(
-                new BufferedInputStream(new FileInputStream("storage/dictionary.dat")))) {
-            this.dictionary = Dictionary.deserialize(dis);
-        } catch (IOException e) {
-            System.err.println("Error loading dictionary: " + e.getMessage());
-        }
-    }
 }
+

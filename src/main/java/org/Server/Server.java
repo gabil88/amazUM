@@ -1,10 +1,12 @@
 package org.Server;
 
 import java.util.concurrent.locks.ReentrantLock;
+
+import org.Utils.RequestType;
+import org.Utils.TaggedConnection;
+
 import java.net.ServerSocket;
 import java.net.Socket;
-import org.TaggedConnection;
-import org.utils.RequestType;
 
 /**
  * The main server class that listens for incoming client connections.
@@ -15,12 +17,19 @@ public class Server {
     private static final int MAX_CLIENTS = 2;
     private final Thread[] workers = new Thread[MAX_CLIENTS];
     private final ReentrantLock lock = new ReentrantLock();
+    
+    // Set to true to populate test data on startup
+    private static final boolean POPULATE_TEST_DATA = true;
 
     /**
      * Initializes a Server instance with a fresh database.
      */
     public Server() {
         this.database = new ServerDatabase();
+        
+        if (POPULATE_TEST_DATA) {
+            database.populateTestData();
+        }
     }
     
     /**

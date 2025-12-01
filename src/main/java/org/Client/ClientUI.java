@@ -1,4 +1,4 @@
-package org;
+package org.Client;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -7,6 +7,136 @@ import java.util.List;
 import java.util.Scanner;
 
 public class ClientUI {
+
+    /**
+     * Hand                    switch(operation){
+                        case 1:
+                            handleAddSale(client, scanner);
+                            break;
+
+                        case 2: 
+                            handleSalesAverage(client, scanner);
+                            break; authentication or registration.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     * @param choice 1 for login, 2 for register.
+     * @return true if authentication/registration was successful, false otherwise.
+     */
+    private static boolean handleAuthentication(ClientLibrary client, Scanner scanner, int choice) {
+        System.out.println("Enter your username: ");
+        String username = scanner.nextLine();
+        System.out.println("Enter your password: ");
+        String password = scanner.nextLine();
+
+        final boolean[] authenticated = new boolean[1];
+        
+        Thread authThread = new Thread(() -> {
+            if (choice == 1) {
+                try {
+                    authenticated[0] = client.authenticate(username, password);
+                } catch (IOException e) {
+                    System.out.println("Error during authentication: " + e.getMessage());
+                    authenticated[0] = false;
+                }
+            } else {
+                try {
+                    authenticated[0] = client.register(username, password);
+                } catch (IOException e) {
+                    System.out.println("Error during registration: " + e.getMessage());
+                    authenticated[0] = false;
+                }
+            }
+        });
+
+        authThread.start();
+
+        try {
+            authThread.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Thread interrupted during authentication.");
+            return false;
+        }
+
+        return authenticated[0];
+    }
+
+    /**
+     * Handles the add sale operation by prompting user for product details.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     */
+    private static void handleAddSale(ClientLibrary client, Scanner scanner) {
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+
+        int quantity = 0;
+        while (true) {
+            System.out.println("Enter quantity:");
+            String quantityInput = scanner.nextLine();
+            try {
+                quantity = Integer.parseInt(quantityInput.trim());
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid quantity! Please enter a valid integer.");
+            }
+        }
+
+        double price = 0.0;
+        while (true) {
+            System.out.println("Enter price:");
+            String priceInput = scanner.nextLine();
+            try {
+                price = Double.parseDouble(priceInput.trim().replace(",", "."));
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid price! Please enter a valid number (e.g., 2.45).");
+            }
+        }
+
+        boolean saleAdded = false;
+        try {
+            saleAdded = client.addSale(productName, quantity, price);
+        } catch (IOException e) {
+            System.out.println("Error adding sale: " + e.getMessage());
+        }
+        if (saleAdded) {
+            System.out.println("Sale added successfully!");
+        } else {
+            System.out.println("Failed to add sale.");
+        }
+    }
+
+    private static void handleSalesAverage(ClientLibrary client, Scanner scanner){
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+
+        int days = 0;
+        while (true) {
+            System.out.println("Enter number of days to aggregate:");
+            String daysInput = scanner.nextLine();
+            try {
+                days = Integer.parseInt(daysInput.trim());
+                if (days < 1) {
+                    System.out.println("Number of days must be at least 1.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid integer.");
+            }
+        }
+
+        try {
+            double avgPrice = client.getSalesAveragePrice(productName, days);
+            System.out.println("Average price for '" + productName + "' in the last " + days + " days: " + avgPrice);
+        } catch (IOException e) {
+            System.out.println("Error getting average price: " + e.getMessage());
+        }
+    }
+
     /**
      * The main entry point for the ClientUI application.
      * Sets up the interface responsible to interact with the server.
@@ -51,45 +181,11 @@ public class ClientUI {
                 return;
             }
 
-            // fields for register/login
-            System.out.println("Enter your username: ");
-            String username = scanner.nextLine();
-            System.out.println("Enter your password: ");
-            String password = scanner.nextLine();
-
-            final boolean[] authenticated = new boolean[1];
-            final int finalChoice = choice;
-            // Create a new thread to handle authentication or registration
-            Thread authThread = new Thread(() -> {
-                if (finalChoice == 1) {
-                    try {
-                        authenticated[0] = client.authenticate(username, password);
-                    } catch (IOException e) {
-                        System.out.println("Error during authentication: " + e.getMessage());
-                        authenticated[0] = false;
-                    }
-                } else {
-                    try {
-                        authenticated[0] = client.register(username, password);
-                    } catch (IOException e) {
-                        System.out.println("Error during registration: " + e.getMessage());
-                        authenticated[0] = false;
-                    }
-                }
-            });
-
-            authThread.start();
-
-            try {
-                authThread.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.out.println("Thread interrupted during authentication.");
-                return;
-            }
+            // Handle authentication/registration
+            boolean authenticated = handleAuthentication(client, scanner, choice);
 
             // If authentication is successful, proceed with operations
-            if (authenticated[0]) {
+            if (authenticated) {
                 System.out.println("You have successfully registered!");
                 boolean running = true;
                 List<Thread> threads = new ArrayList<>();
@@ -123,57 +219,18 @@ public class ClientUI {
 
                     switch(operation){
                         case 1:
-                            System.out.println("Enter product name:");
-                            String productName = scanner.nextLine();
-
-                            int quantity = 0;
-                            while (true) {
-                                System.out.println("Enter quantity:");
-                                String quantityInput = scanner.nextLine();
-                                try {
-                                    quantity = Integer.parseInt(quantityInput.trim());
-                                    break;
-                                } catch (NumberFormatException e) {
-                                    System.out.println("Invalid quantity! Please enter a valid integer.");
-                                }
-                            }
-
-                            double price = 0.0;
-                            while (true) {
-                                System.out.println("Enter price:");
-                                String priceInput = scanner.nextLine();
-                                try {
-                                    price = Double.parseDouble(priceInput.trim().replace(",", "."));
-                                    break;
-                                } catch (NumberFormatException e) {
-                                    System.out.println("Invalid price! Please enter a valid number (e.g., 2.45).");
-                                }
-                            }
-
-                            boolean saleAdded = false;
-                            try {
-                                saleAdded = client.addSale(productName, quantity, price);
-                            } catch (IOException e) {
-                                System.out.println("Error adding sale: " + e.getMessage());
-                            }
-                            if (saleAdded) {
-                                System.out.println("Sale added successfully!");
-                            } else {
-                                System.out.println("Failed to add sale.");
-                            }
+                            handleAddSale(client, scanner);
                             break;
 
                         case 2: 
-                        // to do
                         break;
-
                         case 3: 
                         // to do
                         break;
 
                         case 4: 
-                        // to do
-                        break;
+                            handleSalesAverage(client, scanner);
+                            break;
 
                         case 5: 
                         // to do

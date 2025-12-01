@@ -1,4 +1,4 @@
-package org;
+package org.Client;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.utils.RequestType;
+import org.Utils.Demultiplexer;
+import org.Utils.RequestType;
+import org.Utils.TaggedConnection;
 
 /**
  * /**
@@ -185,5 +187,30 @@ public class ClientLibrary {
         DataInputStream dis = new DataInputStream(bais);
         boolean success = dis.readBoolean();
         return success ? "Day ended successfully." : "Failed to end day.";
+    }
+
+    /**
+     * Gets the average price of a product in the last d days.
+     *
+     * @param productName The name of the product.
+     * @param days Number of past days to aggregate.
+     * @return Average price.
+     * @throws IOException if there is an issue during the request.
+     */
+    public double getSalesAveragePrice(String productName, int days) throws IOException {
+        byte[] requestData;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeUTF(productName);
+            dos.writeInt(days);
+            requestData = baos.toByteArray();
+        }
+        
+        byte[] responseData = sendWithTag(RequestType.SalesAveragePrice.getValue(), requestData);
+        
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                DataInputStream dis = new DataInputStream(bais)) {
+            return dis.readDouble();
+        }
     }
 }

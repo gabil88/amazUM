@@ -1,9 +1,11 @@
 package org.Server;
 
-import org.TaggedConnection;
 import java.net.Socket;
+
+import org.Utils.RequestType;
+import org.Utils.TaggedConnection;
+
 import java.io.*;
-import org.utils.RequestType;
 
 /**
  * Class that represents a worker thread that handles communication with a single client.
@@ -47,7 +49,12 @@ class ServerWorker implements Runnable{
                 TaggedConnection.Frame frame = taggedConnection.receive();
 
                 // 2. Identifica o tipo de operação
-                RequestType requestType = RequestType.values()[frame.requestType];
+                RequestType requestType = RequestType.fromValue(frame.requestType);
+                
+                if (requestType == null) {
+                    System.err.println("Unknown request type: " + frame.requestType);
+                    continue;
+                }
 
                 // Streams para ler os argumentos (Input) e escrever a resposta (Output)
                 DataInputStream in = new DataInputStream(new ByteArrayInputStream(frame.data));
@@ -62,7 +69,7 @@ class ServerWorker implements Runnable{
                         out.writeBoolean(userExists);
                         break;
                     case Register:
-                        String regUsername = in.readUTF();
+                        String regUsername = in.readUTF(); 
                         String regPassword = in.readUTF();
                         boolean registered = database.registerUser(regUsername, regPassword);
                         out.writeBoolean(registered);
@@ -73,6 +80,12 @@ class ServerWorker implements Runnable{
                         double price = in.readDouble();
                         boolean saleAdded = database.addSale(productName, quantity, price);
                         out.writeBoolean(saleAdded);
+                        break;
+                    case SalesAveragePrice:
+                        String prodName = in.readUTF();
+                        int days = in.readInt();
+                        double avgPrice = database.getAveragePrice(prodName, days);
+                        out.writeDouble(avgPrice);
                         break;
                     case EndDay:
                         boolean dayEnded = database.endDay();
