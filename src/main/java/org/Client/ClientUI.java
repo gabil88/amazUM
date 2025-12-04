@@ -138,6 +138,108 @@ public class ClientUI {
     }
 
     /**
+     * Handles the sales quantity query.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     */
+    private static void handleSalesQuantity(ClientLibrary client, Scanner scanner) {
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+
+        int days = 0;
+        while (true) {
+            System.out.println("Enter number of days to aggregate:");
+            String daysInput = scanner.nextLine();
+            try {
+                days = Integer.parseInt(daysInput.trim());
+                if (days < 1) {
+                    System.out.println("Number of days must be at least 1.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid integer.");
+            }
+        }
+
+        try {
+            int quantity = client.getSalesQuantity(productName, days);
+            System.out.println("Total quantity sold for '" + productName + "' in the last " + days + " days: " + quantity);
+        } catch (IOException e) {
+            System.out.println("Error getting sales quantity: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Handles the sales volume query.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     */
+    private static void handleSalesVolume(ClientLibrary client, Scanner scanner) {
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+
+        int days = 0;
+        while (true) {
+            System.out.println("Enter number of days to aggregate:");
+            String daysInput = scanner.nextLine();
+            try {
+                days = Integer.parseInt(daysInput.trim());
+                if (days < 1) {
+                    System.out.println("Number of days must be at least 1.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid integer.");
+            }
+        }
+
+        try {
+            double volume = client.getSalesVolume(productName, days);
+            System.out.println("Total sales volume for '" + productName + "' in the last " + days + " days: " + volume);
+        } catch (IOException e) {
+            System.out.println("Error getting sales volume: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Handles the sales max price query.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     */
+    private static void handleSalesMaxPrice(ClientLibrary client, Scanner scanner) {
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+
+        int days = 0;
+        while (true) {
+            System.out.println("Enter number of days to aggregate:");
+            String daysInput = scanner.nextLine();
+            try {
+                days = Integer.parseInt(daysInput.trim());
+                if (days < 1) {
+                    System.out.println("Number of days must be at least 1.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid integer.");
+            }
+        }
+
+        try {
+            double maxPrice = client.getSalesMaxPrice(productName, days);
+            System.out.println("Maximum price for '" + productName + "' in the last " + days + " days: " + maxPrice);
+        } catch (IOException e) {
+            System.out.println("Error getting max price: " + e.getMessage());
+        }
+    }
+
+    /**
      * The main entry point for the ClientUI application.
      * Sets up the interface responsible to interact with the server.
      * Allows operations such as user authentication, registration of events, listing sales, etc
@@ -201,18 +303,19 @@ public class ClientUI {
                         System.out.println("4. Sale Average Price");
                         System.out.println("5. Sale Max Price");
                         System.out.println("6. End Day");
-                        System.out.println("7. Exit");
+                        System.out.println("7. Shutdown Server");
+                        System.out.println("8. Exit");
 
                         try {
                             operation = scanner.nextInt();
                             scanner.nextLine();
-                            if (operation >= 1 && operation <= 7) {
+                            if (operation >= 1 && operation <= 8) {
                                 validChoice = true;
                             } else {
                                 System.out.println("Invalid operation! Please choose a valid operation.");
                             }
                         } catch (InputMismatchException e) {
-                            System.out.println("Invalid input! Please enter a valid number between 1 and 7.");
+                            System.out.println("Invalid input! Please enter a valid number between 1 and 8.");
                             scanner.nextLine();
                         }
                     }
@@ -223,18 +326,20 @@ public class ClientUI {
                             break;
 
                         case 2: 
-                        break;
+                            handleSalesQuantity(client, scanner);
+                            break;
+
                         case 3: 
-                        // to do
-                        break;
+                            handleSalesVolume(client, scanner);
+                            break;
 
                         case 4: 
                             handleSalesAverage(client, scanner);
                             break;
 
                         case 5: 
-                        // to do
-                        break;
+                            handleSalesMaxPrice(client, scanner);
+                            break;
 
                         case 6: // End Day operation
                             try {
@@ -245,7 +350,24 @@ public class ClientUI {
                             }
                             break;
 
-                        case 7:
+                        case 7: // Shutdown Server
+                            System.out.println("Are you sure you want to shutdown the server? (y/n)");
+                            String confirm = scanner.nextLine().trim().toLowerCase();
+                            if (confirm.equals("y") || confirm.equals("yes")) {
+                                try {
+                                    String result = client.shutdown();
+                                    System.out.println("Server response: " + result);
+                                    running = false;
+                                } catch (IOException e) {
+                                    System.out.println("Server shutdown initiated.");
+                                    running = false;
+                                }
+                            } else {
+                                System.out.println("Shutdown cancelled.");
+                            }
+                            break;
+
+                        case 8: // Exit
                             running = false;
                             for (Thread t : threads) {
                                 try {
@@ -260,7 +382,6 @@ public class ClientUI {
                             } catch (IOException e) {
                                 System.out.println("Error during disconnect: " + e.getMessage());
                             }
-                            client.close(); // <- Ainda dá catch a um EOF Exception
                             break;
 
                         default:

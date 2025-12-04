@@ -7,6 +7,7 @@ import org.Utils.TaggedConnection;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.io.IOException;
 
 /**
  * The main server class that listens for incoming client connections.
@@ -14,68 +15,104 @@ import java.net.Socket;
 public class Server {
 
     private ServerDatabase database;
+    private Handlers handlers;
+    private TaskPool taskPool;
+
+    // Configuration Constants
     private static final int MAX_CLIENTS = 2;
-    private final Thread[] workers = new Thread[MAX_CLIENTS];
+    private static final int DEFAULT_PORT = 12345;
+    private static final int TASK_POOL_SIZE = 10;
+
+    private final Thread[] workers = new Thread[MAX_CLIENTS]; 
     private final ReentrantLock lock = new ReentrantLock();
-    
-    // Set to true to populate test data on startup
-    private static final boolean POPULATE_TEST_DATA = true;
+
+    private boolean running = true;
+    private ServerSocket serverSocket;
 
     /**
      * Initializes a Server instance with a fresh database.
      */
     public Server() {
         this.database = new ServerDatabase();
-        
-        if (POPULATE_TEST_DATA) {
-            database.populateTestData();
-        }
+        this.handlers = new Handlers(database);
+        this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
-    
+
     /**
      * Starts the Server on the specified port.
      * 
      * The Server class creates a {@link ServerSocket} on a specified port and waits
-     * for client connections. 
+     * for client connections.
      * 
-     * For each incoming connection, it spawns a new {@link ServerWorker} thread 
+     * For each incoming connection, it spawns a new {@link ServerWorker} thread
      * to handle communication with that client.
      * 
-     * @param port The port number on which the server will listen for client connections.
+     * @param port The port number on which the server will listen for client
+     *             connections.
      */
     public void start(int port) {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
+        try {
+            serverSocket = new ServerSocket(port);
             System.out.println("=== Servidor Iniciado ===");
             System.out.println("Porta: " + port);
             System.out.println("Aguardando conexões...\n");
 
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-
-                lock.lock();
+            while (isRunning()) {
                 try {
-                    int slot = findFreeSlot();
-                    TaggedConnection tc = new TaggedConnection(clientSocket);
-                    if (slot == -1) {
-                        System.out.println("Limite de clientes atingido. Conexão rejeitada.");
-                        // Send confirmation: rejected
-                        tc.send(RequestType.Confirmation.getValue(), RequestType.Confirmation.getValue(), new byte[]{0});
-                        tc.close();
-                        clientSocket.close();
-                    } else {
-                        // Send confirmation: accepted
-                        tc.send(RequestType.Confirmation.getValue(), RequestType.Confirmation.getValue(), new byte[]{1});
-                        workers[slot] = new Thread(() -> {
-                            new ServerWorker(clientSocket, database).run();
-                        });
-                        workers[slot].start();
+                    Socket clientSocket = serverSocket.accept();
+
+                    lock.lock();
+                    try {
+                        int slot = findFreeSlot();
+                        TaggedConnection tc = new TaggedConnection(clientSocket);
+                        
+                        if (slot == -1) {
+                            System.out.println("Limite de clientes atingido. Conexão rejeitada.");
+                            tc.send(RequestType.Confirmation.getValue(), 
+                                   RequestType.Confirmation.getValue(),
+                                   new byte[] { 0 });
+                            tc.close();
+                            clientSocket.close(); 
+                        } else {
+                            tc.send(RequestType.Confirmation.getValue(), 
+                                   RequestType.Confirmation.getValue(),
+                                   new byte[] { 1 });
+
+                            ServerWorker worker = new ServerWorker(clientSocket, database, handlers, taskPool);
+                            
+                            workers[slot] = new Thread(() -> {
+                                worker.run();
+                                // Cleanup quando termina
+                                lock.lock();
+                                try {
+                                    workers[slot] = null;  
+                                } finally {
+                                    lock.unlock();
+                                }
+                            });
+                            workers[slot].start();
+                        }
+                    } finally {
+                        lock.unlock();
                     }
-                } finally {
-                    lock.unlock();
+                } catch (IOException e) {
+                    if (!isRunning()) {
+                        System.out.println("Server socket closed, stopping accept loop.");
+                        break;
+                    }
+                    e.printStackTrace();
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            System.err.println("Failed to start server: " + e.getMessage());
+        } finally {
+            // Cleanup
+            try {
+                if (serverSocket != null && !serverSocket.isClosed()) {
+                    serverSocket.close();
+                }
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -94,6 +131,17 @@ public class Server {
      */
     public static void main(String[] args) {
         Server server = new Server();
-        server.start(12345);
+        server.start(DEFAULT_PORT);
+        // Quando start() termina (após shutdown), o programa acaba naturalmente
+        System.out.println("Server process ending.");
+    }
+
+    public boolean isRunning() {
+        lock.lock();
+        try {
+            return running;
+        } finally {
+            lock.unlock();
+        }
     }
 }

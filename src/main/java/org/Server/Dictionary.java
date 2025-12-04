@@ -3,7 +3,10 @@ package org.Server;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 
 /**
  *  In any way the program should try to get a not existing id (integer)
@@ -48,7 +51,7 @@ public class Dictionary {
         }
     }
 
-    public void addEntry(String name) {
+    private void addEntry(String name) {
         if (!nameToId.containsKey(name)) {
             nameToId.put(name, counter);
             idToName.put(counter, name);
@@ -81,5 +84,5 @@ public class Dictionary {
             dict.idToName.put(id, name);
         }
         return dict;
-    }
+    }   
 }

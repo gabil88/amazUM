@@ -213,4 +213,96 @@ public class ClientLibrary {
             return dis.readDouble();
         }
     }
+
+    /**
+     * Gets the total quantity sold of a product in the last d days.
+     *
+     * @param productName The name of the product.
+     * @param days Number of past days to aggregate.
+     * @return Total quantity sold.
+     * @throws IOException if there is an issue during the request.
+     */
+    public int getSalesQuantity(String productName, int days) throws IOException {
+        byte[] requestData;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeUTF(productName);
+            dos.writeInt(days);
+            requestData = baos.toByteArray();
+        }
+        
+        byte[] responseData = sendWithTag(RequestType.SalesQuantity.getValue(), requestData);
+        
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                DataInputStream dis = new DataInputStream(bais)) {
+            return dis.readInt();
+        }
+    }
+
+    /**
+     * Gets the total sales volume of a product in the last d days.
+     *
+     * @param productName The name of the product.
+     * @param days Number of past days to aggregate.
+     * @return Total sales volume.
+     * @throws IOException if there is an issue during the request.
+     */
+    public double getSalesVolume(String productName, int days) throws IOException {
+        byte[] requestData;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeUTF(productName);
+            dos.writeInt(days);
+            requestData = baos.toByteArray();
+        }
+        
+        byte[] responseData = sendWithTag(RequestType.SalesVolume.getValue(), requestData);
+        
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                DataInputStream dis = new DataInputStream(bais)) {
+            return dis.readDouble();
+        }
+    }
+
+    /**
+     * Gets the maximum price of a product in the last d days.
+     *
+     * @param productName The name of the product.
+     * @param days Number of past days to aggregate.
+     * @return Maximum price.
+     * @throws IOException if there is an issue during the request.
+     */
+    public double getSalesMaxPrice(String productName, int days) throws IOException {
+        byte[] requestData;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeUTF(productName);
+            dos.writeInt(days);
+            requestData = baos.toByteArray();
+        }
+        
+        byte[] responseData = sendWithTag(RequestType.SalesMaxPrice.getValue(), requestData);
+        
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                DataInputStream dis = new DataInputStream(bais)) {
+            return dis.readDouble();
+        }
+    }
+
+    /**
+     * Sends a shutdown request to the server.
+     * This will save all data and terminate the server.
+     *
+     * @return A message indicating the shutdown status.
+     * @throws IOException if there is an issue during the request.
+     */
+    public String shutdown() throws IOException {
+        byte[] requestData = new byte[0];
+        byte[] responseData = sendWithTag(RequestType.Shutdown.getValue(), requestData);
+        
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
+                DataInputStream dis = new DataInputStream(bais)) {
+            return dis.readUTF();
+        }
+    }
 }

@@ -8,11 +8,12 @@ public enum RequestType {
     Register((short)1),
     AddSale((short)2),
     SalesQuantity((short)3),
-    SalesVolume((short)5),
-    SalesAveragePrice((short)6),
-    SalesMaxPrice((short)7),
-    Disconnect((short)8),
-    EndDay((short) 4), // Use the next available short value
+    SalesVolume((short)4),
+    SalesAveragePrice((short)5),
+    SalesMaxPrice((short)6),
+    Disconnect((short)7),
+    EndDay((short) 8),
+    Shutdown((short) 9),
     Confirmation((short)99); // ou outro valor não usado
 
     private final short value;
