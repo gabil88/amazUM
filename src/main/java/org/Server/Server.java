@@ -19,7 +19,7 @@ public class Server {
     private TaskPool taskPool;
 
     // Configuration Constants
-    private static final int MAX_CLIENTS = 2;
+    private static final int MAX_CLIENTS = 20;
     private static final int DEFAULT_PORT = 12345;
     private static final int TASK_POOL_SIZE = 10;
 
@@ -82,7 +82,6 @@ public class Server {
                             
                             workers[slot] = new Thread(() -> {
                                 worker.run();
-                                // Cleanup quando termina
                                 lock.lock();
                                 try {
                                     workers[slot] = null;  

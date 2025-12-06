@@ -17,7 +17,7 @@ import org.Utils.TaggedConnection;
  * The ClientLibrary class provides methods for communication between the client and the server.
  * Provides methods responsible for authentication, (...)
  */
-public class ClientLibrary {
+public class ClientLibrary implements AutoCloseable {
     /* Handles message multiplexing/demultiplexing */
     private Demultiplexer demultiplexer;
     /* Ensures thread-safe operations */
@@ -63,24 +63,40 @@ public class ClientLibrary {
      * @throws IOException if there is an issue sending the request or receiving the response.
      */
     private byte[] sendWithTag(short requestType, byte[] requestData) throws IOException {
-    int newTag;
+        int newTag;
 
-    lock.lock();
-    try {
-        newTag = this.tag++; // Atribui o valor
-        demultiplexer.send(newTag, requestType, requestData); 
-        
-    } finally {
-        lock.unlock();
+        lock.lock();
+        try {
+            newTag = this.tag++;
+            demultiplexer.send(newTag, requestType, requestData); 
+        } finally {
+            lock.unlock();
+        }
+
+        try {
+            return demultiplexer.receive(newTag);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for response", e);
+        }
     }
 
-    try {
-        return demultiplexer.receive(newTag);
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IOException("Interrupted while waiting for response", e);
+    /**
+     * Sends a request and returns a DataInputStream to read the response.
+     * Note: The returned stream wraps a byte array, so closing is not strictly necessary,
+     * but callers should use try-with-resources for consistency.
+     *
+     * @param requestType The type of the request.
+     * @param requestData The request data.
+     * 
+     * @return A DataInputStream to read the response.
+     * 
+     * @throws IOException if there is an issue sending the request or receiving the response.
+     */
+    private DataInputStream sendRequest(short requestType, byte[] requestData) throws IOException {
+        byte[] responseData = sendWithTag(requestType, requestData);
+        return new DataInputStream(new ByteArrayInputStream(responseData));
     }
-}
     
     /**
      * Authenticates a user given an username and password.
@@ -93,7 +109,6 @@ public class ClientLibrary {
      * @throws IOException if there is an issue during authentication.
      */
     public boolean authenticate(String username, String password) throws IOException {
-        // Envia um pedido de autenticação com as credenciais
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos)) {
@@ -102,10 +117,7 @@ public class ClientLibrary {
             requestData = baos.toByteArray();
         }
         System.out.println("Sending authentication request");
-        byte[] responseData = sendWithTag(RequestType.Login.getValue(), requestData);
-        // Lê a resposta
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.Login.getValue(), requestData)) {
             return dis.readBoolean();
         }
     }
@@ -124,16 +136,11 @@ public class ClientLibrary {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos)) {
-            //dos.writeShort(RequestType.Register.getValue()); <- Não faz sentido estar dentro do data, porque o requestType já se encontra no header
             dos.writeUTF(username);
             dos.writeUTF(password);
             requestData = baos.toByteArray();
         }
-        System.out.println("Sending registration request");
-        byte[] responseData = sendWithTag(RequestType.Register.getValue(), requestData);
-        // Lê a resposta
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.Register.getValue(), requestData)) {
             return dis.readBoolean();
         }
     }
@@ -147,46 +154,31 @@ public class ClientLibrary {
             dos.writeDouble(Price);
             requestData = baos.toByteArray();
         }
-        System.out.println("Sending add event request");
-        byte[] responseData = sendWithTag(RequestType.AddSale.getValue(), requestData);
-        // Lê a resposta
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.AddSale.getValue(), requestData)) {
             return dis.readBoolean();
         }
     }
 
 
     public void close() throws IOException {
-        // 1. Enviar pedido de disconnect
         byte[] disconnect = new byte[0];
         
-        // Nota: Como o servidor fecha logo a seguir ao ack, pode haver uma race condition aqui.
-        // O 'sendWithTag' espera pela resposta. Se tudo correr bem, recebes o "Disconnect acknowledged".
-        try {
-            byte[] response = sendWithTag(RequestType.Disconnect.getValue(), disconnect);
-            
-            try (ByteArrayInputStream bais = new ByteArrayInputStream(response);
-                DataInputStream dis = new DataInputStream(bais)) {
-                String message = dis.readUTF();
-                System.out.println("Server response: " + message);
-            }
+        try (DataInputStream dis = sendRequest(RequestType.Disconnect.getValue(), disconnect)) {
+            String message = dis.readUTF();
+            System.out.println("Server response: " + message);
         } catch (IOException e) {
-            // É normal falhar se o servidor fechar muito rápido
             System.out.println("Desconectado.");
         }
 
-        // 2. Fechar o demultiplexer localmente para limpar threads
         demultiplexer.close();
     }
 
     public String endDay() throws IOException {
-        byte[] requestData = new byte[0]; // No data needed
-        byte[] responseData = sendWithTag(RequestType.EndDay.getValue(), requestData);
-        ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-        DataInputStream dis = new DataInputStream(bais);
-        boolean success = dis.readBoolean();
-        return success ? "Day ended successfully." : "Failed to end day.";
+        byte[] requestData = new byte[0];
+        try (DataInputStream dis = sendRequest(RequestType.EndDay.getValue(), requestData)) {
+            boolean success = dis.readBoolean();
+            return success ? "Day ended successfully." : "Failed to end day.";
+        }
     }
 
     /**
@@ -206,10 +198,7 @@ public class ClientLibrary {
             requestData = baos.toByteArray();
         }
         
-        byte[] responseData = sendWithTag(RequestType.SalesAveragePrice.getValue(), requestData);
-        
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.SalesAveragePrice.getValue(), requestData)) {
             return dis.readDouble();
         }
     }
@@ -231,10 +220,7 @@ public class ClientLibrary {
             requestData = baos.toByteArray();
         }
         
-        byte[] responseData = sendWithTag(RequestType.SalesQuantity.getValue(), requestData);
-        
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.SalesQuantity.getValue(), requestData)) {
             return dis.readInt();
         }
     }
@@ -256,10 +242,7 @@ public class ClientLibrary {
             requestData = baos.toByteArray();
         }
         
-        byte[] responseData = sendWithTag(RequestType.SalesVolume.getValue(), requestData);
-        
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.SalesVolume.getValue(), requestData)) {
             return dis.readDouble();
         }
     }
@@ -281,10 +264,7 @@ public class ClientLibrary {
             requestData = baos.toByteArray();
         }
         
-        byte[] responseData = sendWithTag(RequestType.SalesMaxPrice.getValue(), requestData);
-        
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.SalesMaxPrice.getValue(), requestData)) {
             return dis.readDouble();
         }
     }
@@ -298,10 +278,7 @@ public class ClientLibrary {
      */
     public String shutdown() throws IOException {
         byte[] requestData = new byte[0];
-        byte[] responseData = sendWithTag(RequestType.Shutdown.getValue(), requestData);
-        
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(responseData);
-                DataInputStream dis = new DataInputStream(bais)) {
+        try (DataInputStream dis = sendRequest(RequestType.Shutdown.getValue(), requestData)) {
             return dis.readUTF();
         }
     }

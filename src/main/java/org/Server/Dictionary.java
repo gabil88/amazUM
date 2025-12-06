@@ -28,8 +28,21 @@ public class Dictionary {
     }
 
     public int get(String key) {
+        // Tenta primeiro com read lock (otimização para caso comum)
+        rwLock.readLock().lock();
+        try {
+            Integer id = nameToId.get(key);
+            if (id != null) {
+                return id;
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+        
+        // Se não encontrou, precisa de write lock para adicionar
         rwLock.writeLock().lock();
         try {
+            // Double-check: outra thread pode ter adicionado entretanto
             Integer id = nameToId.get(key);
             if (id == null) {
                 addEntry(key);

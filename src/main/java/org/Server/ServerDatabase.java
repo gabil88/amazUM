@@ -22,8 +22,6 @@ class ServerDatabase {
 
     /* Map that stores all registered users in the Server */
     private Map<String, String> users;
-
-    /* Lock to handle client authentication and registration */
     private final ReentrantLock usersLock = new ReentrantLock();
     
     /**
@@ -132,6 +130,7 @@ class ServerDatabase {
     public boolean endDay() {
         Map<Integer, List<Venda>> dataToSave;
         int dayToSave;
+        int newDay;
 
         ordersLock.lock();
         try {
@@ -143,6 +142,7 @@ class ServerDatabase {
             // Reseta o estado global para o novo dia
             this.ordersCurDay = new HashMap<>();
             this.currentDay++;
+            newDay = this.currentDay; // Captura o novo valor dentro do lock
             
             System.out.println("Dia avançado para: " + this.currentDay);
 
@@ -155,7 +155,7 @@ class ServerDatabase {
         // nenhuma outra thread vai mexer neste mapa. É seguro.
         try {
             persistence.serializeDay(dataToSave, dayToSave);
-            persistence.saveCurrentDay(this.currentDay);
+            persistence.saveCurrentDay(newDay); // Usa a variável local capturada
             persistence.saveDictionary(dictionary);
             return true;
         } catch (IOException e) {

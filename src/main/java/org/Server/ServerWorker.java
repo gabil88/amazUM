@@ -21,7 +21,6 @@ class ServerWorker implements Runnable {
     private TaggedConnection taggedConnection;
     private volatile boolean running;
 
-    @FunctionalInterface
     private interface ResponseWriter {
         void write(DataOutputStream out) throws IOException;
     }
@@ -50,9 +49,6 @@ class ServerWorker implements Runnable {
         }
     }
 
-    public boolean isRunning() {
-        return running;
-    }
 
     /**
      * Main execution method of the worker thread.
@@ -65,7 +61,6 @@ class ServerWorker implements Runnable {
     @Override
     public void run() {
         try {
-            socket.setSoTimeout(10000);
             System.out.println("✓ Client connected: " + socket.getInetAddress());
 
             while (running) {
@@ -94,13 +89,13 @@ class ServerWorker implements Runnable {
                         String username = in.readUTF();
                         String password = in.readUTF();
                         boolean userExists = database.checkUserCredentials(username, password);
-                        sendSyncResponse(frame, requestType, (out) -> out.writeBoolean(userExists));
+                        sendResponse(frame, requestType, (out) -> out.writeBoolean(userExists));
                         break;
                     case Register:
                         String regUsername = in.readUTF();
                         String regPassword = in.readUTF();
                         boolean registered = database.createUser(regUsername, regPassword);
-                        sendSyncResponse(frame, requestType, (out) -> out.writeBoolean(registered));
+                        sendResponse(frame, requestType, (out) -> out.writeBoolean(registered));
                         break;
                     /*--Operations that need parallel processing--*/
                     case AddSale:
@@ -109,7 +104,7 @@ class ServerWorker implements Runnable {
                         double price = in.readDouble();
                         taskPool.submit(
                             () -> database.addSaleRecord(productName, quantity, price),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeBoolean(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeBoolean(result))
                         );
                         break;
                     case SalesAveragePrice:
@@ -117,7 +112,7 @@ class ServerWorker implements Runnable {
                         int days = in.readInt();
                         taskPool.submit(
                             () -> handlers.getAveragePrice(prodName, days),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeDouble(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
                     case SalesMaxPrice:
@@ -125,7 +120,7 @@ class ServerWorker implements Runnable {
                         int daysMax = in.readInt();
                         taskPool.submit(
                             () -> handlers.getMaxPrice(productNameMax, daysMax),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeDouble(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
                     case SalesQuantity:
@@ -133,7 +128,7 @@ class ServerWorker implements Runnable {
                         int daysQty = in.readInt();
                         taskPool.submit(
                             () -> handlers.getTotalQuantitySold(productNameQty, daysQty),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeInt(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeInt(result))
                         );
                         break;
                     case SalesVolume:
@@ -141,19 +136,19 @@ class ServerWorker implements Runnable {
                         int daysVol = in.readInt();
                         taskPool.submit(
                             () -> handlers.getTotalSalesVolume(productNameVol, daysVol),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeDouble(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
                     case EndDay:
                         taskPool.submit(
                             () -> database.endDay(),
-                            (result) -> sendAsyncResponse(frame, requestType, (out) -> out.writeBoolean(result))
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeBoolean(result))
                         );
                         break;
                     /*-----------------------------------------*/
                     case Disconnect:
                         System.out.println("Client: " + socket.getInetAddress() + " is disconnecting ...");
-                        sendSyncResponse(frame, requestType, (out) -> out.writeUTF("Disconnect acknowledged"));
+                        sendResponse(frame, requestType, (out) -> out.writeUTF("Disconnect acknowledged"));
                         running = false;
                         break;
                     case Confirmation:
@@ -176,9 +171,11 @@ class ServerWorker implements Runnable {
     }
 
     /**
-     * Envia resposta síncrona (bloqueante, usada para Login/Register/Disconnect).
+     * Envia uma resposta ao cliente.
+     * Usada tanto para respostas síncronas (Login/Register/Disconnect) 
+     * como assíncronas (chamadas pela thread pool).
      */
-    private void sendSyncResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
+    private void sendResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(baos);
@@ -186,22 +183,7 @@ class ServerWorker implements Runnable {
             out.flush();
             taggedConnection.send(frame.tag, requestType.getValue(), baos.toByteArray());
         } catch (IOException e) {
-            System.err.println("Failed to send sync response: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Envia resposta assíncrona (chamada pela thread pool após conclusão da tarefa).
-     */
-    private void sendAsyncResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            DataOutputStream out = new DataOutputStream(baos);
-            writer.write(out);
-            out.flush();
-            taggedConnection.send(frame.tag, requestType.getValue(), baos.toByteArray());
-        } catch (IOException e) {
-            System.err.println("Failed to send async response: " + e.getMessage());
+            System.err.println("Failed to send response: " + e.getMessage());
         }
     }
 }

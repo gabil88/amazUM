@@ -9,14 +9,7 @@ import java.util.Scanner;
 public class ClientUI {
 
     /**
-     * Hand                    switch(operation){
-                        case 1:
-                            handleAddSale(client, scanner);
-                            break;
-
-                        case 2: 
-                            handleSalesAverage(client, scanner);
-                            break; authentication or registration.
+     * Handles user authentication or registration.
      * 
      * @param client The client library instance.
      * @param scanner The scanner for user input.
