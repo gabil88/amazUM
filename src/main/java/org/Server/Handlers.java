@@ -3,6 +3,7 @@ package org.Server;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * Handles query operations over sales data.
  * Delegates data access to ServerDatabase.

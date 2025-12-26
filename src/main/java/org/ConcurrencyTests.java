@@ -1,6 +1,6 @@
 package org;
 
-import org.Client.ClientLibrary;
+import org.Client.ClientStub;
 
 
 import java.util.concurrent.*;
@@ -61,7 +61,7 @@ public class ConcurrencyTests {
         for (int i = 0; i < NUM_THREADS; i++) {
             final int id = i;
             pool.submit(() -> {
-                try (ClientLibrary client = new ClientLibrary(HOST, PORT)) {
+                try (ClientStub client = new ClientStub(HOST, PORT)) {
                     client.authenticate("user" + id, "pass" + id);
                     for (int j = 0; j < OPS_PER_THREAD; j++) {
                         String prod = PRODUCTS[j % PRODUCTS.length];
@@ -87,7 +87,7 @@ public class ConcurrencyTests {
         System.out.println("   -> Tempo: " + time + "ms");
         
         // Limpar o dia para não afetar próximos testes
-        try (ClientLibrary admin = new ClientLibrary(HOST, PORT)) {
+        try (ClientStub admin = new ClientStub(HOST, PORT)) {
             admin.authenticate("user0", "pass0");
             admin.endDay(); 
         }
@@ -101,7 +101,7 @@ public class ConcurrencyTests {
     // Verifica se os IDs das tags não se misturam.
     // ===========================================================================================
     private static boolean testClientMultiplexing() throws Exception {
-        ClientLibrary sharedClient = new ClientLibrary(HOST, PORT);
+        ClientStub sharedClient = new ClientStub(HOST, PORT);
         sharedClient.authenticate("user0", "pass0"); // Autentica uma vez
 
         AtomicInteger errors = new AtomicInteger(0);
@@ -158,7 +158,7 @@ public class ConcurrencyTests {
 
         // Thread que avança dias
         Thread endDayThread = new Thread(() -> {
-            try (ClientLibrary admin = new ClientLibrary(HOST, PORT)) {
+            try (ClientStub admin = new ClientStub(HOST, PORT)) {
                 admin.authenticate("user0", "pass0");
                 while (running.get()) {
                     Thread.sleep(200); // Avança dia a cada 200ms
@@ -174,7 +174,7 @@ public class ConcurrencyTests {
         ExecutorService pool = Executors.newFixedThreadPool(NUM_THREADS);
         for (int i = 0; i < NUM_THREADS; i++) {
             pool.submit(() -> {
-                try (ClientLibrary client = new ClientLibrary(HOST, PORT)) {
+                try (ClientStub client = new ClientStub(HOST, PORT)) {
                     client.authenticate("user0", "pass0");
                     while (running.get()) {
                         client.addSale("apple", 1, 20.0);
@@ -199,7 +199,7 @@ public class ConcurrencyTests {
 
         // Verificação de consistência
         // Vamos avançar mais um dia para garantir que tudo foi para o disco
-        try (ClientLibrary verifier = new ClientLibrary(HOST, PORT)) {
+        try (ClientStub verifier = new ClientStub(HOST, PORT)) {
             verifier.authenticate("user0", "pass0");
             verifier.endDay(); 
             
@@ -233,7 +233,7 @@ public class ConcurrencyTests {
 
         for (int i = 0; i < NUM_THREADS; i++) {
             pool.submit(() -> {
-                try (ClientLibrary client = new ClientLibrary(HOST, PORT)) {
+                try (ClientStub client = new ClientStub(HOST, PORT)) {
                     client.authenticate("user0", "pass0");
                     for (int j = 0; j < 50; j++) {
                         double r = Math.random();
@@ -270,7 +270,7 @@ public class ConcurrencyTests {
 
     private static void setupUsers() {
         System.out.print("⚙️  A registar utilizadores de teste... ");
-        try (ClientLibrary client = new ClientLibrary(HOST, PORT)) {
+        try (ClientStub client = new ClientStub(HOST, PORT)) {
             for (int i = 0; i < NUM_THREADS; i++) {
                 client.register("user" + i, "pass" + i);
             }

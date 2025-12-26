@@ -16,6 +16,7 @@ public class Server {
 
     private ServerDatabase database;
     private Handlers handlers;
+    private ServerSkeleton skeleton;
     private TaskPool taskPool;
 
     // Configuration Constants
@@ -35,6 +36,7 @@ public class Server {
     public Server() {
         this.database = new ServerDatabase();
         this.handlers = new Handlers(database);
+        this.skeleton = new ServerSkeleton(database, handlers);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
 
@@ -78,7 +80,7 @@ public class Server {
                                    RequestType.Confirmation.getValue(),
                                    new byte[] { 1 });
 
-                            ServerWorker worker = new ServerWorker(clientSocket, database, handlers, taskPool);
+                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool);
                             
                             workers[slot] = new Thread(() -> {
                                 worker.run();

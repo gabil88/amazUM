@@ -16,7 +16,7 @@ public class ClientUI {
      * @param choice 1 for login, 2 for register.
      * @return true if authentication/registration was successful, false otherwise.
      */
-    private static boolean handleAuthentication(ClientLibrary client, Scanner scanner, int choice) {
+    private static boolean handleAuthentication(ClientStub client, Scanner scanner, int choice) {
         System.out.println("Enter your username: ");
         String username = scanner.nextLine();
         System.out.println("Enter your password: ");
@@ -61,7 +61,7 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      */
-    private static void handleAddSale(ClientLibrary client, Scanner scanner) {
+    private static void handleAddSale(ClientStub client, Scanner scanner) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
 
@@ -102,7 +102,7 @@ public class ClientUI {
         }
     }
 
-    private static void handleSalesAverage(ClientLibrary client, Scanner scanner){
+    private static void handleSalesAverage(ClientStub client, Scanner scanner){
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
 
@@ -136,7 +136,7 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      */
-    private static void handleSalesQuantity(ClientLibrary client, Scanner scanner) {
+    private static void handleSalesQuantity(ClientStub client, Scanner scanner) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
 
@@ -170,7 +170,7 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      */
-    private static void handleSalesVolume(ClientLibrary client, Scanner scanner) {
+    private static void handleSalesVolume(ClientStub client, Scanner scanner) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
 
@@ -204,7 +204,7 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      */
-    private static void handleSalesMaxPrice(ClientLibrary client, Scanner scanner) {
+    private static void handleSalesMaxPrice(ClientStub client, Scanner scanner) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
 
@@ -239,9 +239,9 @@ public class ClientUI {
      */
      public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
-            ClientLibrary client;
+            ClientStub client;
             try {
-                client = new ClientLibrary("localhost", 12345);
+                client = new ClientStub("localhost", 12345);
             } catch (IOException e) {
                 System.out.println(e.getMessage());
                 return; // Termina o programa sem stack trace

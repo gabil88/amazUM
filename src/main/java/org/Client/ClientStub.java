@@ -8,16 +8,17 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.Common.IAmazUM;
 import org.Utils.Demultiplexer;
 import org.Utils.RequestType;
 import org.Utils.TaggedConnection;
 
 /**
- * /**
- * The ClientLibrary class provides methods for communication between the client and the server.
- * Provides methods responsible for authentication, (...)
+ * Stub do cliente - implementa IAmazUM enviando pedidos pela rede.
+ * Esta classe abstrai a comunicação com o servidor, serializando os pedidos
+ * e enviando-os através de uma conexão TCP.
  */
-public class ClientLibrary implements AutoCloseable {
+public class ClientStub implements IAmazUM, AutoCloseable {
     /* Handles message multiplexing/demultiplexing */
     private Demultiplexer demultiplexer;
     /* Ensures thread-safe operations */
@@ -25,7 +26,7 @@ public class ClientLibrary implements AutoCloseable {
     /* Unique identifier for each request */
     private int tag = 0;
 
-    public ClientLibrary(String host, int port) throws IOException {
+    public ClientStub(String host, int port) throws IOException {
         Socket socket = new Socket(host, port);
         TaggedConnection taggedConnection = new TaggedConnection(socket); 
         
@@ -108,6 +109,7 @@ public class ClientLibrary implements AutoCloseable {
      * 
      * @throws IOException if there is an issue during authentication.
      */
+    @Override
     public boolean authenticate(String username, String password) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -132,6 +134,7 @@ public class ClientLibrary implements AutoCloseable {
      * 
      * @throws IOException if there is an issue during registration.
      */
+    @Override
     public boolean register(String username, String password) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -145,6 +148,7 @@ public class ClientLibrary implements AutoCloseable {
         }
     }
 
+    @Override
     public boolean addSale(String ProductName, int Quantity, double Price) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -173,6 +177,7 @@ public class ClientLibrary implements AutoCloseable {
         demultiplexer.close();
     }
 
+    @Override
     public String endDay() throws IOException {
         byte[] requestData = new byte[0];
         try (DataInputStream dis = sendRequest(RequestType.EndDay.getValue(), requestData)) {
@@ -189,6 +194,7 @@ public class ClientLibrary implements AutoCloseable {
      * @return Average price.
      * @throws IOException if there is an issue during the request.
      */
+    @Override
     public double getSalesAveragePrice(String productName, int days) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -211,6 +217,7 @@ public class ClientLibrary implements AutoCloseable {
      * @return Total quantity sold.
      * @throws IOException if there is an issue during the request.
      */
+    @Override
     public int getSalesQuantity(String productName, int days) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -233,6 +240,7 @@ public class ClientLibrary implements AutoCloseable {
      * @return Total sales volume.
      * @throws IOException if there is an issue during the request.
      */
+    @Override
     public double getSalesVolume(String productName, int days) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -255,6 +263,7 @@ public class ClientLibrary implements AutoCloseable {
      * @return Maximum price.
      * @throws IOException if there is an issue during the request.
      */
+    @Override
     public double getSalesMaxPrice(String productName, int days) throws IOException {
         byte[] requestData;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -276,6 +285,7 @@ public class ClientLibrary implements AutoCloseable {
      * @return A message indicating the shutdown status.
      * @throws IOException if there is an issue during the request.
      */
+    @Override
     public String shutdown() throws IOException {
         byte[] requestData = new byte[0];
         try (DataInputStream dis = sendRequest(RequestType.Shutdown.getValue(), requestData)) {

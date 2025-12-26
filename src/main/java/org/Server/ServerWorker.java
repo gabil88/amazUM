@@ -2,6 +2,7 @@ package org.Server;
 
 import java.net.Socket;
 
+import org.Common.IAmazUM;
 import org.Utils.RequestType;
 import org.Utils.TaggedConnection;
 
@@ -15,8 +16,7 @@ import java.io.*;
  */
 class ServerWorker implements Runnable {
     private Socket socket;
-    private ServerDatabase database;
-    private Handlers handlers;
+    private IAmazUM skeleton;
     private TaskPool taskPool;
     private TaggedConnection taggedConnection;
     private volatile boolean running;
@@ -29,17 +29,14 @@ class ServerWorker implements Runnable {
      * Initializes a ServerWorker for a specific client connection.
      * 
      * @param socket   The client socket representing the connection.
-     * @param database The database for CRUD operations.
-     * @param handlers The handlers for analytics/query operations.
+     * @param skeleton The server skeleton implementing IAmazUM interface.
      * @param taskPool The shared task pool for heavy operations.
-     * @param server   The server instance for shutdown coordination.
      * 
      * @throws RuntimeException if creating the TaggedConnection fails.
      */
-    public ServerWorker(Socket socket, ServerDatabase database, Handlers handlers, TaskPool taskPool) {
+    public ServerWorker(Socket socket, IAmazUM skeleton, TaskPool taskPool) {
         this.socket = socket;
-        this.database = database;
-        this.handlers = handlers;
+        this.skeleton = skeleton;
         this.taskPool = taskPool;
         this.running = true;
         try {
@@ -88,13 +85,13 @@ class ServerWorker implements Runnable {
                     case Login:
                         String username = in.readUTF();
                         String password = in.readUTF();
-                        boolean userExists = database.checkUserCredentials(username, password);
+                        boolean userExists = skeleton.authenticate(username, password);
                         sendResponse(frame, requestType, (out) -> out.writeBoolean(userExists));
                         break;
                     case Register:
                         String regUsername = in.readUTF();
                         String regPassword = in.readUTF();
-                        boolean registered = database.createUser(regUsername, regPassword);
+                        boolean registered = skeleton.register(regUsername, regPassword);
                         sendResponse(frame, requestType, (out) -> out.writeBoolean(registered));
                         break;
                     /*--Operations that need parallel processing--*/
@@ -103,7 +100,7 @@ class ServerWorker implements Runnable {
                         int quantity = in.readInt();
                         double price = in.readDouble();
                         taskPool.submit(
-                            () -> database.addSaleRecord(productName, quantity, price),
+                            () -> skeleton.addSale(productName, quantity, price),
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeBoolean(result))
                         );
                         break;
@@ -111,7 +108,7 @@ class ServerWorker implements Runnable {
                         String prodName = in.readUTF();
                         int days = in.readInt();
                         taskPool.submit(
-                            () -> handlers.getAveragePrice(prodName, days),
+                            () -> skeleton.getSalesAveragePrice(prodName, days),
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
@@ -119,7 +116,7 @@ class ServerWorker implements Runnable {
                         String productNameMax = in.readUTF();
                         int daysMax = in.readInt();
                         taskPool.submit(
-                            () -> handlers.getMaxPrice(productNameMax, daysMax),
+                            () -> skeleton.getSalesMaxPrice(productNameMax, daysMax),
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
@@ -127,7 +124,7 @@ class ServerWorker implements Runnable {
                         String productNameQty = in.readUTF();
                         int daysQty = in.readInt();
                         taskPool.submit(
-                            () -> handlers.getTotalQuantitySold(productNameQty, daysQty),
+                            () -> skeleton.getSalesQuantity(productNameQty, daysQty),
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeInt(result))
                         );
                         break;
@@ -135,13 +132,16 @@ class ServerWorker implements Runnable {
                         String productNameVol = in.readUTF();
                         int daysVol = in.readInt();
                         taskPool.submit(
-                            () -> handlers.getTotalSalesVolume(productNameVol, daysVol),
+                            () -> skeleton.getSalesVolume(productNameVol, daysVol),
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeDouble(result))
                         );
                         break;
                     case EndDay:
                         taskPool.submit(
-                            () -> database.endDay(),
+                            () -> {
+                                skeleton.endDay();
+                                return true;
+                            },
                             (result) -> sendResponse(frame, requestType, (out) -> out.writeBoolean(result))
                         );
                         break;
@@ -155,7 +155,10 @@ class ServerWorker implements Runnable {
                         // Handled at connection time, should not appear here
                         break;
                     case Shutdown:
-                        // NO DO
+                        taskPool.submit(
+                            () -> skeleton.shutdown(),
+                            (result) -> sendResponse(frame, requestType, (out) -> out.writeUTF(result))
+                        );
                         break;
                 }
             }
