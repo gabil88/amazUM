@@ -14,6 +14,8 @@ public enum RequestType {
     Disconnect((short)7),
     EndDay((short) 8),
     Shutdown((short) 9),
+    SimultaneousSales((short)10),
+    ConsecutiveSales((short)11),
     Confirmation((short)99); // ou outro valor não usado
 
     private final short value;

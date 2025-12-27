@@ -106,4 +106,27 @@ public interface IAmazUM {
      * @throws IOException se houver erro de comunicação
      */
     String shutdown() throws IOException;
+
+    // ==================== Notificações de Ocorrências ====================
+
+    /**
+     * Bloqueia até que dois produtos específicos sejam vendidos no mesmo dia.
+     * 
+     * @param p1 Nome do primeiro produto
+     * @param p2 Nome do segundo produto
+     * @return true se ocorreram, false se o dia terminou sem ocorrerem
+     * @throws IOException Erro de rede
+     * @throws InterruptedException Se a thread for interrompida
+     */
+    boolean waitForSimultaneousSales(String p1, String p2) throws IOException, InterruptedException;
+
+    /**
+     * Bloqueia até que N vendas consecutivas de um mesmo produto ocorram.
+     * 
+     * @param n Número de vendas consecutivas
+     * @return Nome do produto que atingiu a meta, ou null se o dia terminou
+     * @throws IOException Erro de rede
+     * @throws InterruptedException Se a thread for interrompida
+     */
+    String waitForConsecutiveSales(int n) throws IOException, InterruptedException;
 }

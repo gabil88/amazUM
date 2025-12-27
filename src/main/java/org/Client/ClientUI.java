@@ -233,6 +233,78 @@ public class ClientUI {
     }
 
     /**
+     * Handles the wait for simultaneous sales notification.
+     * Runs in a separate thread to avoid blocking the UI.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     * @param threads The list of active threads to track.
+     */
+    private static void handleWaitForSimultaneousSales(ClientStub client, Scanner scanner, List<Thread> threads) {
+        System.out.println("Enter first product name:");
+        String p1 = scanner.nextLine();
+        System.out.println("Enter second product name:");
+        String p2 = scanner.nextLine();
+
+        Thread t = new Thread(() -> {
+            try {
+                boolean result = client.waitForSimultaneousSales(p1, p2);
+                if (result) {
+                    System.out.println("\n[Notification] Simultaneous sales detected for " + p1 + " and " + p2 + "!");
+                } else {
+                    System.out.println("\n[Notification] Day ended without simultaneous sales for " + p1 + " and " + p2 + ".");
+                }
+            } catch (Exception e) {
+                System.out.println("\n[Notification] Error waiting for simultaneous sales: " + e.getMessage());
+            }
+        });
+        
+        threads.add(t);
+        t.start();
+        System.out.println("Notification request submitted in background. You can continue using the menu.");
+    }
+
+    /**
+     * Handles the wait for consecutive sales notification.
+     * Runs in a separate thread to avoid blocking the UI.
+     * 
+     * @param client The client library instance.
+     * @param scanner The scanner for user input.
+     * @param threads The list of active threads to track.
+     */
+    private static void handleWaitForConsecutiveSales(ClientStub client, Scanner scanner, List<Thread> threads) {
+        int n = 0;
+        while (true) {
+            System.out.println("Enter number of consecutive sales:");
+            String input = scanner.nextLine();
+            try {
+                n = Integer.parseInt(input.trim());
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number!");
+            }
+        }
+        
+        final int count = n;
+        Thread t = new Thread(() -> {
+            try {
+                String product = client.waitForConsecutiveSales(count);
+                if (product != null) {
+                    System.out.println("\n[Notification] " + count + " consecutive sales detected for product: " + product + "!");
+                } else {
+                    System.out.println("\n[Notification] Day ended without " + count + " consecutive sales.");
+                }
+            } catch (Exception e) {
+                System.out.println("\n[Notification] Error waiting for consecutive sales: " + e.getMessage());
+            }
+        });
+
+        threads.add(t);
+        t.start();
+        System.out.println("Notification request submitted in background. You can continue using the menu.");
+    }
+
+    /**
      * The main entry point for the ClientUI application.
      * Sets up the interface responsible to interact with the server.
      * Allows operations such as user authentication, registration of events, listing sales, etc
@@ -297,18 +369,20 @@ public class ClientUI {
                         System.out.println("5. Sale Max Price");
                         System.out.println("6. End Day");
                         System.out.println("7. Shutdown Server");
-                        System.out.println("8. Exit");
+                        System.out.println("8. Wait for Simultaneous Sales");
+                        System.out.println("9. Wait for Consecutive Sales");
+                        System.out.println("10. Exit");
 
                         try {
                             operation = scanner.nextInt();
                             scanner.nextLine();
-                            if (operation >= 1 && operation <= 8) {
+                            if (operation >= 1 && operation <= 10) {
                                 validChoice = true;
                             } else {
                                 System.out.println("Invalid operation! Please choose a valid operation.");
                             }
                         } catch (InputMismatchException e) {
-                            System.out.println("Invalid input! Please enter a valid number between 1 and 8.");
+                            System.out.println("Invalid input! Please enter a valid number between 1 and 10.");
                             scanner.nextLine();
                         }
                     }
@@ -360,7 +434,15 @@ public class ClientUI {
                             }
                             break;
 
-                        case 8: // Exit
+                        case 8: // Wait for Simultaneous Sales
+                            handleWaitForSimultaneousSales(client, scanner, threads);
+                            break;
+
+                        case 9: // Wait for Consecutive Sales
+                            handleWaitForConsecutiveSales(client, scanner, threads);
+                            break;
+
+                        case 10: // Exit
                             running = false;
                             for (Thread t : threads) {
                                 try {
