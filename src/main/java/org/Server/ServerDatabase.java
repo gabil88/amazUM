@@ -205,7 +205,6 @@ class ServerDatabase {
         try {
             persistence.saveCurrentDay(currentDay);
             persistence.saveDictionary(dictionary);
-            
             // Só serializa se houver dados no dia atual!
             if (!ordersCurDay.isEmpty()) {
                 try {
@@ -214,6 +213,8 @@ class ServerDatabase {
                     System.err.println("Error saving current day orders: " + e.getMessage());
                 }
             }
+            // Acorda todos os clientes à espera de notificações
+            notificationManager.shutdown();
         } finally {
             ordersLock.unlock();
         }

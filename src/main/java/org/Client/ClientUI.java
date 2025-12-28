@@ -224,7 +224,7 @@ public class ClientUI {
                 if (result) {
                     printSafe("\n[Notification] Simultaneous sales detected for " + p1 + " and " + p2 + "!");
                 } else {
-                    printSafe("\n[Notification] Day ended without simultaneous sales for " + p1 + " and " + p2 + ".");
+                    printSafe("\n[Notification] Did not detect simultaneous sales for " + p1 + " and " + p2 + ".");
                 }
             } catch (Exception e) {
                 printSafe("\n[Notification] Error waiting for simultaneous sales: " + e.getMessage());
@@ -263,7 +263,7 @@ public class ClientUI {
                 if (product != null) {
                     printSafe("\n[Notification] " + count + " consecutive sales detected for product: " + product + "!");
                 } else {
-                    printSafe("\n[Notification] Day ended without " + count + " consecutive sales.");
+                    printSafe("\n[Notification] Did not detect " + count + " consecutive sales.");
                 }
             } catch (Exception e) {
                 printSafe("\n[Notification] Error waiting for consecutive sales: " + e.getMessage());
