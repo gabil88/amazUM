@@ -82,4 +82,23 @@ public class ServerSkeleton implements IAmazUM {
         int lastDay = database.shutdown();
         return "Server shutdown. Last day saved: " + lastDay;
     }
+
+    // ==================== Notificações (Novas Funções) ====================
+
+    @Override
+    public boolean waitForSimultaneousSales(String p1, String p2) throws IOException, InterruptedException {
+    
+        if(database.checkSimultaneousSales(p1, p2)){
+            return true;
+        }
+        return database.waitForSimultaneousSales(p1, p2);
+    }
+
+    @Override
+    public String waitForConsecutiveSales(int n) throws IOException, InterruptedException {
+        if(database.checkConsecutiveSales(n) != null){
+            return database.checkConsecutiveSales(n);
+        }
+        return database.waitForConsecutiveSales(n);
+    }
 }

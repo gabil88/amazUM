@@ -23,6 +23,8 @@ class ServerDatabase {
     /* Map that stores all registered users in the Server */
     private Map<String, String> users;
     private final ReentrantLock usersLock = new ReentrantLock();
+
+    private final NotificationManager notificationManager;
     
     /**
      * Default constructor for the ServerDatabase class.
@@ -37,6 +39,8 @@ class ServerDatabase {
         this.currentDay = persistence.loadCurrentDay();
         this.users = persistence.loadUsers();
         this.dictionary = persistence.loadDictionary();
+
+        this.notificationManager = new NotificationManager(this.currentDay);
         
         // DEBUG
         System.out.println("=== ServerDatabase Loaded ===");
@@ -62,6 +66,32 @@ class ServerDatabase {
      */
     public int getProductId(String productName) {
         return dictionary.get(productName);
+    }
+
+    // Expor metodos do NotificationManager via Database
+    
+    public boolean checkSimultaneousSales(String p1, String p2) {
+        int id1 = dictionary.get(p1);
+        int id2 = dictionary.get(p2);
+        return notificationManager.checkSimultaneousSales(id1, id2);
+    }
+
+    public boolean waitForSimultaneousSales(String p1, String p2) throws InterruptedException {
+        int id1 = dictionary.get(p1);
+        int id2 = dictionary.get(p2);
+        return notificationManager.waitForSimultaneousSales(id1, id2);
+    }
+
+    public String checkConsecutiveSales(int n) {
+        int id = notificationManager.checkConsecutiveSales(n);
+        if (id == -1) return null;
+        return dictionary.get(id);
+    }
+
+    public String waitForConsecutiveSales(int n) throws InterruptedException {
+        int id = notificationManager.waitForConsecutiveSales(n);
+        if (id == -1) return null;
+        return dictionary.get(id);
     }
 
 
@@ -119,8 +149,12 @@ class ServerDatabase {
         ordersLock.lock();
         try {
             int id = dictionary.get(produto);
+
             Venda venda = new Venda(id, quantidade, preco);
             ordersCurDay.computeIfAbsent(id, k -> new ArrayList<>()).add(venda);
+
+            notificationManager.registerSale(id);
+
             return true;
         } finally {
             ordersLock.unlock();

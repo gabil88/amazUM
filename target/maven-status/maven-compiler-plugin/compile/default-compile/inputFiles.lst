@@ -1,17 +1,18 @@
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Client/Client.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/Server.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/ConcurrencyTests.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Client/ClientUI.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Utils/Demultiplexer.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/Venda.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Common/IAmazUM.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/Handlers.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/ServerSkeleton.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/Dictionary.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Utils/TaggedConnection.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/ServerWorker.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/ServerDatabase.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Client/ClientStub.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/TaskPool.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Utils/RequestType.java
-/home/simon/3º ano/SD/amazUM/src/main/java/org/Server/PersistenceManager.java
+/home/gabil33/SD/amazUM/src/main/java/org/Utils/Demultiplexer.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/NotificationManager.java
+/home/gabil33/SD/amazUM/src/main/java/org/ConcurrencyTests.java
+/home/gabil33/SD/amazUM/src/main/java/org/Utils/TaggedConnection.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/Handlers.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/TaskPool.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/Venda.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/Dictionary.java
+/home/gabil33/SD/amazUM/src/main/java/org/Common/IAmazUM.java
+/home/gabil33/SD/amazUM/src/main/java/org/Client/ClientUI.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/ServerWorker.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/ServerSkeleton.java
+/home/gabil33/SD/amazUM/src/main/java/org/Utils/RequestType.java
+/home/gabil33/SD/amazUM/src/main/java/org/Client/Client.java
+/home/gabil33/SD/amazUM/src/main/java/org/Client/ClientStub.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/PersistenceManager.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/Server.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/ServerDatabase.java

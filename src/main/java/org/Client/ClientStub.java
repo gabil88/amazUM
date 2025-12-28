@@ -292,4 +292,39 @@ public class ClientStub implements IAmazUM, AutoCloseable {
             return dis.readUTF();
         }
     }
+
+    // ==================== Notificações ====================
+
+    @Override
+    public boolean waitForSimultaneousSales(String p1, String p2) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeUTF(p1);
+            dos.writeUTF(p2);
+            dos.flush();
+            
+            try (DataInputStream dis = sendRequest(RequestType.SimultaneousSales.getValue(), baos.toByteArray())) {
+                return dis.readBoolean();
+            }
+        }
+    }
+
+    @Override
+    public String waitForConsecutiveSales(int n) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             DataOutputStream dos = new DataOutputStream(baos)) {
+            
+            dos.writeInt(n);
+            dos.flush();
+            
+            try (DataInputStream dis = sendRequest(RequestType.ConsecutiveSales.getValue(), baos.toByteArray())) {
+                boolean hasResult = dis.readBoolean();
+                if (hasResult) {
+                    return dis.readUTF();
+                } else {
+                    return null;
+                }
+            }
+        }
+    }
 }

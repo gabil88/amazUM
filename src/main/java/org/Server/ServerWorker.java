@@ -146,6 +146,38 @@ class ServerWorker implements Runnable {
                         );
                         break;
                     /*-----------------------------------------*/
+                    case SimultaneousSales:
+                        String p1 = in.readUTF();
+                        String p2 = in.readUTF();
+                        new Thread(() -> {
+                            try {
+                                boolean result = skeleton.waitForSimultaneousSales(p1, p2);
+                                sendResponse(frame, requestType, (out) -> out.writeBoolean(result));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                        break;
+
+                    case ConsecutiveSales:
+                        int n = in.readInt();
+                        new Thread(() -> {
+                            try {
+                                String result = skeleton.waitForConsecutiveSales(n);
+                                sendResponse(frame, requestType, (out) -> {
+                                    if (result != null) {
+                                        out.writeBoolean(true);
+                                        out.writeUTF(result);
+                                    } else {
+                                        out.writeBoolean(false);
+                                    }
+                                });
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                        break;
+                        
                     case Disconnect:
                         System.out.println("Client: " + socket.getInetAddress() + " is disconnecting ...");
                         sendResponse(frame, requestType, (out) -> out.writeUTF("Disconnect acknowledged"));
@@ -178,7 +210,7 @@ class ServerWorker implements Runnable {
      * Usada tanto para respostas síncronas (Login/Register/Disconnect) 
      * como assíncronas (chamadas pela thread pool).
      */
-    private void sendResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
+    private synchronized void sendResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(baos);
