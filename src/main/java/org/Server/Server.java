@@ -1,23 +1,21 @@
 package org.Server;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.Utils.RequestType;
 import org.Utils.TaggedConnection;
-
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.io.IOException;
 
 /**
  * The main server class that listens for incoming client connections.
  */
 public class Server {
 
-    private ServerDatabase database;
-    private Handlers handlers;
-    private ServerSkeleton skeleton;
-    private TaskPool taskPool;
+    private final ServerDatabase database;
+    private final ServerSkeleton skeleton;
+    private final TaskPool taskPool;
 
     // Configuration Constants
     private static final int MAX_CLIENTS = 100;
@@ -35,8 +33,7 @@ public class Server {
      */
     public Server() {
         this.database = new ServerDatabase();
-        this.handlers = new Handlers(database);
-        this.skeleton = new ServerSkeleton(database, handlers);
+        this.skeleton = new ServerSkeleton(database);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
 
@@ -55,6 +52,8 @@ public class Server {
     public void start(int port) {
         try {
             serverSocket = new ServerSocket(port);
+            // Define timeout de 1 segundo para aceitar conexões
+            serverSocket.setSoTimeout(1000);
             System.out.println("=== Servidor Iniciado ===");
             System.out.println("Porta: " + port);
             System.out.println("Aguardando conexões...\n");
@@ -80,7 +79,7 @@ public class Server {
                                    RequestType.Confirmation.getValue(),
                                    new byte[] { 1 });
 
-                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool);
+                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool,this);
                             
                             workers[slot] = new Thread(() -> {
                                 worker.run();
@@ -96,6 +95,9 @@ public class Server {
                     } finally {
                         lock.unlock();
                     }
+                } catch (java.net.SocketTimeoutException ste) {
+                    // Timeout: permite re-verificar a flag running
+                    continue;
                 } catch (IOException e) {
                     if (!isRunning()) {
                         System.out.println("Server socket closed, stopping accept loop.");
@@ -141,6 +143,22 @@ public class Server {
         lock.lock();
         try {
             return running;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void close() {
+        lock.lock();
+        try {
+            running = false;
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    System.err.println("Error closing server socket: " + e.getMessage());
+                }
+            }
         } finally {
             lock.unlock();
         }

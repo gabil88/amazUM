@@ -1,0 +1,80 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m-------------------------< [0;36morg.example:amazUM[0;1m >-------------------------[m
+[[1;34mINFO[m] [1mBuilding amazUM 1.0-SNAPSHOT[m
+[[1;34mINFO[m] [1m--------------------------------[ jar ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mexec-maven-plugin:3.1.0:java[m [1m(default-cli)[m @ [36mamazUM[0;1m ---[m
+🐒 CHAOS MONKEY ATIVADO!
+Duração: 300s
+Threads: 15
+
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Server response: Disconnect acknowledged
+Connected to the server: localhost:12345
+Connected to the server: localhost:12345
+Sending authentication request
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+Connected to the server: localhost:12345
+Connected to the server: localhost:12345
+Sending authentication request
+Sending authentication request
+Connected to the server: localhost:12345
+Sending authentication request
+[CHAOS] Ops: 19298 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 39062 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 58911 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 78808 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 98774 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 118479 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 138625 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 158728 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 179117 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0

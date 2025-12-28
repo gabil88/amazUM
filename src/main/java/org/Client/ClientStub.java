@@ -20,7 +20,7 @@ import org.Utils.TaggedConnection;
  */
 public class ClientStub implements IAmazUM, AutoCloseable {
     /* Handles message multiplexing/demultiplexing */
-    private Demultiplexer demultiplexer;
+    private final Demultiplexer demultiplexer;
     /* Ensures thread-safe operations */
     private final ReentrantLock lock = new ReentrantLock();
     /* Unique identifier for each request */
@@ -163,7 +163,7 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         }
     }
 
-
+    @Override
     public void close() throws IOException {
         byte[] disconnect = new byte[0];
         
@@ -173,8 +173,9 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         } catch (IOException e) {
             System.out.println("Desconectado.");
         }
-
-        demultiplexer.close();
+        finally {
+            demultiplexer.close();       
+        }
     }
 
     @Override

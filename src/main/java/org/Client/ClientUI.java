@@ -32,9 +32,9 @@ public class ClientUI {
      * @return true if authentication/registration was successful, false otherwise.
      */
     private static boolean handleAuthentication(ClientStub client, Scanner scanner, int choice) {
-        System.out.println("Enter your username: ");
+        printSafe("Enter your username: ");
         String username = scanner.nextLine();
-        System.out.println("Enter your password: ");
+        printSafe("Enter your password: ");
         String password = scanner.nextLine();
 
         try {
@@ -44,7 +44,7 @@ public class ClientUI {
                 return client.register(username, password);
             }
         } catch (IOException e) {
-            System.out.println("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
+            printSafe("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
             return false;
         }
     }
@@ -57,30 +57,30 @@ public class ClientUI {
      * @param threads The list of active threads to track.
      */
     private static void handleAddSale(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter product name:");
+        printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
         int quantity = 0;
         while (true) {
-            System.out.println("Enter quantity:");
+            printSafe("Enter quantity:");
             String quantityInput = scanner.nextLine();
             try {
                 quantity = Integer.parseInt(quantityInput.trim());
                 break;
             } catch (NumberFormatException e) {
-                System.out.println("Invalid quantity! Please enter a valid integer.");
+                printSafe("Invalid quantity! Please enter a valid integer.");
             }
         }
         
         double price = 0.0;
         while (true) {
-            System.out.println("Enter price:");
+            printSafe("Enter price:");
             String priceInput = scanner.nextLine();
             try {
                 price = Double.parseDouble(priceInput.trim().replace(",", "."));
                 break;
             } catch (NumberFormatException e) {
-                System.out.println("Invalid price! Please enter a valid number (e.g., 2.45).");
+                printSafe("Invalid price! Please enter a valid number (e.g., 2.45).");
             }
         }
 
@@ -108,7 +108,7 @@ public class ClientUI {
      * Handles the sales average price query in a separate thread.
      */
     private static void handleSalesAverage(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter product name:");
+        printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
         int days = getDaysInput(scanner);
@@ -130,7 +130,7 @@ public class ClientUI {
      * Handles the sales quantity query in a separate thread.
      */
     private static void handleSalesQuantity(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter product name:");
+        printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
         int days = getDaysInput(scanner);
@@ -152,7 +152,7 @@ public class ClientUI {
      * Handles the sales volume query in a separate thread.
      */
     private static void handleSalesVolume(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter product name:");
+        printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
         int days = getDaysInput(scanner);
@@ -174,7 +174,7 @@ public class ClientUI {
      * Handles the sales max price query in a separate thread.
      */
     private static void handleSalesMaxPrice(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter product name:");
+        printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
         int days = getDaysInput(scanner);
@@ -213,9 +213,9 @@ public class ClientUI {
      * Handles the wait for simultaneous sales notification.
      */
     private static void handleWaitForSimultaneousSales(ClientStub client, Scanner scanner, List<Thread> threads) {
-        System.out.println("Enter first product name:");
+        printSafe("Enter first product name:");
         String p1 = scanner.nextLine();
-        System.out.println("Enter second product name:");
+        printSafe("Enter second product name:");
         String p2 = scanner.nextLine();
         
         Thread t = new Thread(() -> {
@@ -233,7 +233,7 @@ public class ClientUI {
         
         threads.add(t);
         t.start();
-        System.out.println("Notification request submitted in background. You can continue using the menu.");
+        printSafe("Notification request submitted in background. You can continue using the menu.");
     }
 
     /**
@@ -242,17 +242,17 @@ public class ClientUI {
     private static void handleWaitForConsecutiveSales(ClientStub client, Scanner scanner, List<Thread> threads) {
         int n = 0;
         while (true) {
-            System.out.println("Enter number of consecutive sales:");
+            printSafe("Enter number of consecutive sales:");
             String input = scanner.nextLine();
             try {
                 n = Integer.parseInt(input.trim());
                 if (n < 1) {
-                    System.out.println("Number must be at least 1.");
+                    printSafe("Number must be at least 1.");
                     continue;
                 }
                 break;
             } catch (NumberFormatException e) {
-                System.out.println("Invalid number!");
+                printSafe("Invalid number!");
             }
         }
         
@@ -272,7 +272,7 @@ public class ClientUI {
         
         threads.add(t);
         t.start();
-        System.out.println("Notification request submitted in background. You can continue using the menu.");
+        printSafe("Notification request submitted in background. You can continue using the menu.");
     }
 
     /**
@@ -281,17 +281,17 @@ public class ClientUI {
     private static int getDaysInput(Scanner scanner) {
         int days = 0;
         while (true) {
-            System.out.println("Enter number of days to aggregate:");
+            printSafe("Enter number of days to aggregate:");
             String daysInput = scanner.nextLine();
             try {
                 days = Integer.parseInt(daysInput.trim());
                 if (days < 1) {
-                    System.out.println("Number of days must be at least 1.");
+                    printSafe("Number of days must be at least 1.");
                     continue;
                 }
                 break;
             } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
+                printSafe("Invalid input! Please enter a valid integer.");
             }
         }
         return days;
@@ -306,7 +306,7 @@ public class ClientUI {
             try {
                 client = new ClientStub("localhost", 12345);
             } catch (IOException e) {
-                System.out.println(e.getMessage());
+                printSafe(e.getMessage());
                 return;
             }
 
@@ -315,22 +315,22 @@ public class ClientUI {
 
             // Display initial menu for user choice: register, login, or exit
             while (!validChoice) {
-                System.out.println("\n========== SALES MANAGEMENT SYSTEM ==========");
-                System.out.println("Choose an option: ");
-                System.out.println("1. Log in ");
-                System.out.println("2. Register new account");
-                System.out.println("3. Exit");
-                System.out.println("=============================================");
+                printSafe("\n========== SALES MANAGEMENT SYSTEM ==========");
+                printSafe("Choose an option: ");
+                printSafe("1. Log in ");
+                printSafe("2. Register new account");
+                printSafe("3. Exit");
+                printSafe("=============================================");
                 try {
                     choice = scanner.nextInt();
                     scanner.nextLine();
                     if (choice == 1 || choice == 2 || choice == 3) {
                         validChoice = true;
                     } else {
-                        System.out.println("Invalid option! Please choose 1, 2, or 3.");
+                        printSafe("Invalid option! Please choose 1, 2, or 3.");
                     }
                 } catch (InputMismatchException e) {
-                    System.out.println("Invalid input! Please enter a number (1, 2 or 3).");
+                    printSafe("Invalid input! Please enter a number (1, 2 or 3).");
                     scanner.nextLine();
                 }
             }
@@ -346,7 +346,7 @@ public class ClientUI {
 
             // If authentication is successful, proceed with operations
             if (authenticated) {
-                System.out.println("\n✓ Authentication successful! Welcome to the system.");
+                printSafe("\n✓ Authentication successful! Welcome to the system.");
                 boolean running = true;
                 List<Thread> threads = new ArrayList<>();
 
@@ -355,19 +355,21 @@ public class ClientUI {
                     validChoice = false;
                     
                     while (!validChoice) {
-                        System.out.println("\n============== OPERATIONS MENU ==============");
-                        System.out.println("1.  Register a Sale - Add a new sale record");
-                        System.out.println("2.  Total Units Sold - Query quantity sold for a product");
-                        System.out.println("3.  Total Revenue - Calculate sales volume (quantity × price)");
-                        System.out.println("4.  Average Sale Price - Get mean price for a product");
-                        System.out.println("5.  Maximum Sale Price - Find highest price for a product");
-                        System.out.println("6.  End Current Day - Close day and process notifications");
-                        System.out.println("7.  Shutdown Server - Terminate server (admin only)");
-                        System.out.println("8.  Monitor Simultaneous Sales - Alert when 2 products sell together");
-                        System.out.println("9.  Monitor Consecutive Sales - Alert when N sales happen in a row");
-                        System.out.println("10. Exit Application");
-                        System.out.println("=============================================");
-                        System.out.print("Select operation (1-10): ");
+                        String menu = 
+                            "\n============== OPERATIONS MENU ==============\n" +
+                            "1.  Register a Sale - Add a new sale record\n" +
+                            "2.  Total Units Sold - Query quantity sold for a product\n" +
+                            "3.  Total Revenue - Calculate sales volume (quantity × price)\n" +
+                            "4.  Average Sale Price - Get mean price for a product\n" +
+                            "5.  Maximum Sale Price - Find highest price for a product\n" +
+                            "6.  End Current Day - Close day and process notifications\n" +
+                            "7.  Shutdown Server - Terminate server (admin only)\n" +
+                            "8.  Monitor Simultaneous Sales - Alert when 2 products sell together\n" +
+                            "9.  Monitor Consecutive Sales - Alert when N sales happen in a row\n" +
+                            "10. Exit Application\n" +
+                            "=============================================\n" +
+                            "Select operation (1-10): ";
+                            printSafe(menu);
                         
                         try {
                             operation = scanner.nextInt();
@@ -375,10 +377,10 @@ public class ClientUI {
                             if (operation >= 1 && operation <= 10) {
                                 validChoice = true;
                             } else {
-                                System.out.println("Invalid operation! Please choose between 1 and 10.");
+                                printSafe("Invalid operation! Please choose between 1 and 10.");
                             }
                         } catch (InputMismatchException e) {
-                            System.out.println("Invalid input! Please enter a number between 1 and 10.");
+                            printSafe("Invalid input! Please enter a number between 1 and 10.");
                             scanner.nextLine();
                         }
                     }
@@ -403,7 +405,7 @@ public class ClientUI {
                             handleEndDay(client, threads);
                             break;
                         case 7:
-                            System.out.println("Are you sure you want to shutdown the server? (y/n)");
+                            printSafe("Are you sure you want to shutdown the server? (y/n)");
                             String confirm = scanner.nextLine().trim().toLowerCase();
                             if (confirm.equals("y") || confirm.equals("yes")) {
                                 Thread shutdownThread = new Thread(() -> {
@@ -416,10 +418,10 @@ public class ClientUI {
                                 });
                                 threads.add(shutdownThread);
                                 shutdownThread.start();
-                                System.out.println("Shutdown request sent. Exiting application...");
+                                printSafe("Shutdown request sent. Exiting application...");
                                 running = false;
                             } else {
-                                System.out.println("Shutdown cancelled.");
+                                printSafe("Shutdown cancelled.");
                             }
                             break;
                         case 8:
@@ -430,29 +432,29 @@ public class ClientUI {
                             break;
                         case 10:
                             running = false;
-                            System.out.println("\nWaiting for pending operations to complete...");
+                            printSafe("\nWaiting for pending operations to complete...");
                             for (Thread t : threads) {
                                 try {
                                     t.join();
                                 } catch (InterruptedException e) {
                                     Thread.currentThread().interrupt();
-                                    System.out.println("Thread interrupted.");
+                                    printSafe("Thread interrupted.");
                                 }
                             }
                             try {
                                 client.close();
-                                System.out.println("Disconnected successfully. Goodbye!");
+                                printSafe("Disconnected successfully. Goodbye!");
                             } catch (IOException e) {
-                                System.out.println("Error during disconnect: " + e.getMessage());
+                                printSafe("Error during disconnect: " + e.getMessage());
                             }
                             break;
                         default:
-                            System.out.println("Invalid operation!");
+                            printSafe("Invalid operation!");
                             break;
                     }
                 }
             } else {
-                System.out.println("\n✗ Authentication failed! Please check your credentials.");
+                printSafe("\n✗ Authentication failed! Please check your credentials.");
                 client.close();
             }
         } catch (IOException e) {

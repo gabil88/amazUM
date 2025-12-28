@@ -1,6 +1,8 @@
 package org.Server;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import org.Common.IAmazUM;
 
@@ -15,7 +17,6 @@ import org.Common.IAmazUM;
 public class ServerSkeleton implements IAmazUM {
     
     private final ServerDatabase database;
-    private final Handlers handlers;
     
     /**
      * Cria um novo ServerSkeleton.
@@ -23,9 +24,8 @@ public class ServerSkeleton implements IAmazUM {
      * @param database Base de dados do servidor
      * @param handlers Handlers para operações de consulta
      */
-    public ServerSkeleton(ServerDatabase database, Handlers handlers) {
+    public ServerSkeleton(ServerDatabase database) {
         this.database = database;
-        this.handlers = handlers;
     }
     
     // ==================== Autenticação ====================
@@ -51,22 +51,96 @@ public class ServerSkeleton implements IAmazUM {
     
     @Override
     public double getSalesAveragePrice(String productName, int days) throws IOException {
-        return handlers.getAveragePrice(productName, days);
+        int productId = database.getProductId(productName);
+        if (productId == -1) {
+            return 0.0;
+        }
+
+        Map<Integer, List<Venda>> data = database.getNDaysData(days);
+        List<Venda> vendas = data.get(productId);
+        
+        if (vendas == null || vendas.isEmpty()) {
+            return 0.0;
+        }
+
+        double totalPaid = 0.0;
+        int totalQuantity = 0;
+
+        for (Venda v : vendas) {
+            totalPaid += v.getPreco();
+            totalQuantity += v.getQuantidade();
+        }
+
+        return totalQuantity == 0 ? 0.0 : totalPaid / totalQuantity;
     }
     
     @Override
     public int getSalesQuantity(String productName, int days) throws IOException {
-        return handlers.getTotalQuantitySold(productName, days);
+        int productId = database.getProductId(productName);
+        if (productId == -1) {
+            return 0;
+        }
+
+        Map<Integer, List<Venda>> data = database.getNDaysData(days);
+        List<Venda> vendas = data.get(productId);
+        
+        if (vendas == null || vendas.isEmpty()) {
+            return 0;
+        }
+
+        int totalQuantity = 0;
+        for (Venda v : vendas) {
+            totalQuantity += v.getQuantidade();
+        }
+        
+        return totalQuantity;
     }
     
     @Override
     public double getSalesVolume(String productName, int days) throws IOException {
-        return handlers.getTotalSalesVolume(productName, days);
+        int productId = database.getProductId(productName);
+        if (productId == -1) {
+            return 0.0;
+        }
+
+        Map<Integer, List<Venda>> data = database.getNDaysData(days);
+        List<Venda> vendas = data.get(productId);
+        
+        if (vendas == null || vendas.isEmpty()) {
+            return 0.0;
+        }
+
+        double totalVolume = 0.0;
+        for (Venda v : vendas) {
+            totalVolume += v.getPreco();
+        }
+        
+        return totalVolume;
     }
     
     @Override
     public double getSalesMaxPrice(String productName, int days) throws IOException {
-        return handlers.getMaxPrice(productName, days);
+        int productId = database.getProductId(productName);
+        if (productId == -1) {
+            return 0.0;
+        }
+
+        Map<Integer, List<Venda>> data = database.getNDaysData(days);
+        List<Venda> vendas = data.get(productId);
+        
+        if (vendas == null || vendas.isEmpty()) {
+            return 0.0;
+        }
+
+        double maxPrice = 0.0;
+        for (Venda v : vendas) {
+            double unitPrice = v.getPreco() / v.getQuantidade();
+            if (unitPrice > maxPrice) {
+                maxPrice = unitPrice;
+            }
+        }
+        
+        return maxPrice;
     }
     
     // ==================== Operações Administrativas ====================

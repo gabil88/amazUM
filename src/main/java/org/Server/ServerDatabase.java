@@ -1,11 +1,11 @@
 package org.Server;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.concurrent.locks.ReentrantLock;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Class that represents the database of the server, including methods for handling users/clients, products and sales.
@@ -13,7 +13,7 @@ import java.io.IOException;
 class ServerDatabase {
     private int currentDay = 0;
 
-    private Dictionary dictionary;
+    private final Dictionary dictionary;
     private final PersistenceManager persistence;
 
     /* Map that stores the actual day's orders */

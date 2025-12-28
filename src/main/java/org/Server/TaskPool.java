@@ -29,13 +29,31 @@ public class TaskPool {
         System.out.println("TaskPool iniciada com " + poolSize + " threads.");
     }
 
+    public void shutdown() {
+        lock.lock();
+        try {
+            shutdown = true;
+            notEmpty.signalAll();
+        } finally {
+            lock.unlock();
+        }
+
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        System.out.println("TaskPool encerrada.");
+    }
+
     public <T> void submit(Callable<T> task, Consumer<T> responseHandler) {
         lock.lock();
         try {
             if (shutdown) {
                 throw new IllegalStateException("TaskPool já foi encerrada");
             }
-            // ↓ Cria o wrapper INLINE - sem classe separada
             taskQueue.add(() -> {
                 try {
                     T result = task.call();
@@ -77,4 +95,6 @@ public class TaskPool {
             }
         }
     }
+
+    
 }
