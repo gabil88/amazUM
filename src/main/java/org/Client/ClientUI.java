@@ -5,12 +5,27 @@ import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ClientUI {
+    
+    private static final ReentrantLock consoleLock = new ReentrantLock();
+    
+    /**
+     * Imprime mensagem no console de forma thread-safe.
+     */
+    private static void printSafe(String message) {
+        consoleLock.lock();
+        try {
+            System.out.println(message);
+        } finally {
+            consoleLock.unlock();
+        }
+    }
 
     /**
-     * Handles user authentication or registration.
-     * 
+     * Handles user authentication or registration (synchronous).
+     *
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      * @param choice 1 for login, 2 for register.
@@ -22,49 +37,29 @@ public class ClientUI {
         System.out.println("Enter your password: ");
         String password = scanner.nextLine();
 
-        final boolean[] authenticated = new boolean[1];
-        
-        Thread authThread = new Thread(() -> {
-            if (choice == 1) {
-                try {
-                    authenticated[0] = client.authenticate(username, password);
-                } catch (IOException e) {
-                    System.out.println("Error during authentication: " + e.getMessage());
-                    authenticated[0] = false;
-                }
-            } else {
-                try {
-                    authenticated[0] = client.register(username, password);
-                } catch (IOException e) {
-                    System.out.println("Error during registration: " + e.getMessage());
-                    authenticated[0] = false;
-                }
-            }
-        });
-
-        authThread.start();
-
         try {
-            authThread.join();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("Thread interrupted during authentication.");
+            if (choice == 1) {
+                return client.authenticate(username, password);
+            } else {
+                return client.register(username, password);
+            }
+        } catch (IOException e) {
+            System.out.println("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
             return false;
         }
-
-        return authenticated[0];
     }
 
     /**
-     * Handles the add sale operation by prompting user for product details.
-     * 
+     * Handles the add sale operation in a separate thread.
+     *
      * @param client The client library instance.
      * @param scanner The scanner for user input.
+     * @param threads The list of active threads to track.
      */
-    private static void handleAddSale(ClientStub client, Scanner scanner) {
+    private static void handleAddSale(ClientStub client, Scanner scanner, List<Thread> threads) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
-
+        
         int quantity = 0;
         while (true) {
             System.out.println("Enter quantity:");
@@ -76,7 +71,7 @@ public class ClientUI {
                 System.out.println("Invalid quantity! Please enter a valid integer.");
             }
         }
-
+        
         double price = 0.0;
         while (true) {
             System.out.println("Enter price:");
@@ -89,173 +84,150 @@ public class ClientUI {
             }
         }
 
-        boolean saleAdded = false;
-        try {
-            saleAdded = client.addSale(productName, quantity, price);
-        } catch (IOException e) {
-            System.out.println("Error adding sale: " + e.getMessage());
-        }
-        if (saleAdded) {
-            System.out.println("Sale added successfully!");
-        } else {
-            System.out.println("Failed to add sale.");
-        }
-    }
-
-    private static void handleSalesAverage(ClientStub client, Scanner scanner){
-        System.out.println("Enter product name:");
-        String productName = scanner.nextLine();
-
-        int days = 0;
-        while (true) {
-            System.out.println("Enter number of days to aggregate:");
-            String daysInput = scanner.nextLine();
+        final int finalQuantity = quantity;
+        final double finalPrice = price;
+        
+        Thread t = new Thread(() -> {
             try {
-                days = Integer.parseInt(daysInput.trim());
-                if (days < 1) {
-                    System.out.println("Number of days must be at least 1.");
-                    continue;
+                boolean saleAdded = client.addSale(productName, finalQuantity, finalPrice);
+                if (saleAdded) {
+                    printSafe("[Response] Sale added successfully for " + productName + "!");
+                } else {
+                    printSafe("[Response] Failed to add sale for " + productName + ".");
                 }
-                break;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
+            } catch (IOException e) {
+                printSafe("[Response] Error adding sale: " + e.getMessage());
             }
-        }
-
-        try {
-            double avgPrice = client.getSalesAveragePrice(productName, days);
-            System.out.println("Average price for '" + productName + "' in the last " + days + " days: " + avgPrice);
-        } catch (IOException e) {
-            System.out.println("Error getting average price: " + e.getMessage());
-        }
+        });
+        
+        threads.add(t);
+        t.start();
     }
 
     /**
-     * Handles the sales quantity query.
-     * 
-     * @param client The client library instance.
-     * @param scanner The scanner for user input.
+     * Handles the sales average price query in a separate thread.
      */
-    private static void handleSalesQuantity(ClientStub client, Scanner scanner) {
+    private static void handleSalesAverage(ClientStub client, Scanner scanner, List<Thread> threads) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
-
-        int days = 0;
-        while (true) {
-            System.out.println("Enter number of days to aggregate:");
-            String daysInput = scanner.nextLine();
+        
+        int days = getDaysInput(scanner);
+        
+        Thread t = new Thread(() -> {
             try {
-                days = Integer.parseInt(daysInput.trim());
-                if (days < 1) {
-                    System.out.println("Number of days must be at least 1.");
-                    continue;
-                }
-                break;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
+                double avgPrice = client.getSalesAveragePrice(productName, days);
+                printSafe("[Response] Average price for '" + productName + "' in the last " + days + " days: " + avgPrice);
+            } catch (IOException e) {
+                printSafe("[Response] Error getting average price: " + e.getMessage());
             }
-        }
-
-        try {
-            int quantity = client.getSalesQuantity(productName, days);
-            System.out.println("Total quantity sold for '" + productName + "' in the last " + days + " days: " + quantity);
-        } catch (IOException e) {
-            System.out.println("Error getting sales quantity: " + e.getMessage());
-        }
+        });
+        
+        threads.add(t);
+        t.start();
     }
 
     /**
-     * Handles the sales volume query.
-     * 
-     * @param client The client library instance.
-     * @param scanner The scanner for user input.
+     * Handles the sales quantity query in a separate thread.
      */
-    private static void handleSalesVolume(ClientStub client, Scanner scanner) {
+    private static void handleSalesQuantity(ClientStub client, Scanner scanner, List<Thread> threads) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
-
-        int days = 0;
-        while (true) {
-            System.out.println("Enter number of days to aggregate:");
-            String daysInput = scanner.nextLine();
+        
+        int days = getDaysInput(scanner);
+        
+        Thread t = new Thread(() -> {
             try {
-                days = Integer.parseInt(daysInput.trim());
-                if (days < 1) {
-                    System.out.println("Number of days must be at least 1.");
-                    continue;
-                }
-                break;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
+                int quantity = client.getSalesQuantity(productName, days);
+                printSafe("[Response] Total quantity sold for '" + productName + "' in the last " + days + " days: " + quantity);
+            } catch (IOException e) {
+                printSafe("[Response] Error getting sales quantity: " + e.getMessage());
             }
-        }
-
-        try {
-            double volume = client.getSalesVolume(productName, days);
-            System.out.println("Total sales volume for '" + productName + "' in the last " + days + " days: " + volume);
-        } catch (IOException e) {
-            System.out.println("Error getting sales volume: " + e.getMessage());
-        }
+        });
+        
+        threads.add(t);
+        t.start();
     }
 
     /**
-     * Handles the sales max price query.
-     * 
-     * @param client The client library instance.
-     * @param scanner The scanner for user input.
+     * Handles the sales volume query in a separate thread.
      */
-    private static void handleSalesMaxPrice(ClientStub client, Scanner scanner) {
+    private static void handleSalesVolume(ClientStub client, Scanner scanner, List<Thread> threads) {
         System.out.println("Enter product name:");
         String productName = scanner.nextLine();
-
-        int days = 0;
-        while (true) {
-            System.out.println("Enter number of days to aggregate:");
-            String daysInput = scanner.nextLine();
+        
+        int days = getDaysInput(scanner);
+        
+        Thread t = new Thread(() -> {
             try {
-                days = Integer.parseInt(daysInput.trim());
-                if (days < 1) {
-                    System.out.println("Number of days must be at least 1.");
-                    continue;
-                }
-                break;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
+                double volume = client.getSalesVolume(productName, days);
+                printSafe("[Response] Total sales volume for '" + productName + "' in the last " + days + " days: " + volume);
+            } catch (IOException e) {
+                printSafe("[Response] Error getting sales volume: " + e.getMessage());
             }
-        }
+        });
+        
+        threads.add(t);
+        t.start();
+    }
 
-        try {
-            double maxPrice = client.getSalesMaxPrice(productName, days);
-            System.out.println("Maximum price for '" + productName + "' in the last " + days + " days: " + maxPrice);
-        } catch (IOException e) {
-            System.out.println("Error getting max price: " + e.getMessage());
-        }
+    /**
+     * Handles the sales max price query in a separate thread.
+     */
+    private static void handleSalesMaxPrice(ClientStub client, Scanner scanner, List<Thread> threads) {
+        System.out.println("Enter product name:");
+        String productName = scanner.nextLine();
+        
+        int days = getDaysInput(scanner);
+        
+        Thread t = new Thread(() -> {
+            try {
+                double maxPrice = client.getSalesMaxPrice(productName, days);
+                printSafe("[Response] Maximum price for '" + productName + "' in the last " + days + " days: " + maxPrice);
+            } catch (IOException e) {
+                printSafe("[Response] Error getting max price: " + e.getMessage());
+            }
+        });
+        
+        threads.add(t);
+        t.start();
+    }
+
+    /**
+     * Handles the end day operation in a separate thread.
+     */
+    private static void handleEndDay(ClientStub client, List<Thread> threads) {
+        Thread t = new Thread(() -> {
+            try {
+                String result = client.endDay();
+                printSafe("[Response] " + result);
+            } catch (IOException e) {
+                printSafe("[Response] Error ending day: " + e.getMessage());
+            }
+        });
+        
+        threads.add(t);
+        t.start();
     }
 
     /**
      * Handles the wait for simultaneous sales notification.
-     * Runs in a separate thread to avoid blocking the UI.
-     * 
-     * @param client The client library instance.
-     * @param scanner The scanner for user input.
-     * @param threads The list of active threads to track.
      */
     private static void handleWaitForSimultaneousSales(ClientStub client, Scanner scanner, List<Thread> threads) {
         System.out.println("Enter first product name:");
         String p1 = scanner.nextLine();
         System.out.println("Enter second product name:");
         String p2 = scanner.nextLine();
-
+        
         Thread t = new Thread(() -> {
             try {
                 boolean result = client.waitForSimultaneousSales(p1, p2);
                 if (result) {
-                    System.out.println("\n[Notification] Simultaneous sales detected for " + p1 + " and " + p2 + "!");
+                    printSafe("\n[Notification] Simultaneous sales detected for " + p1 + " and " + p2 + "!");
                 } else {
-                    System.out.println("\n[Notification] Day ended without simultaneous sales for " + p1 + " and " + p2 + ".");
+                    printSafe("\n[Notification] Day ended without simultaneous sales for " + p1 + " and " + p2 + ".");
                 }
             } catch (Exception e) {
-                System.out.println("\n[Notification] Error waiting for simultaneous sales: " + e.getMessage());
+                printSafe("\n[Notification] Error waiting for simultaneous sales: " + e.getMessage());
             }
         });
         
@@ -266,11 +238,6 @@ public class ClientUI {
 
     /**
      * Handles the wait for consecutive sales notification.
-     * Runs in a separate thread to avoid blocking the UI.
-     * 
-     * @param client The client library instance.
-     * @param scanner The scanner for user input.
-     * @param threads The list of active threads to track.
      */
     private static void handleWaitForConsecutiveSales(ClientStub client, Scanner scanner, List<Thread> threads) {
         int n = 0;
@@ -279,6 +246,10 @@ public class ClientUI {
             String input = scanner.nextLine();
             try {
                 n = Integer.parseInt(input.trim());
+                if (n < 1) {
+                    System.out.println("Number must be at least 1.");
+                    continue;
+                }
                 break;
             } catch (NumberFormatException e) {
                 System.out.println("Invalid number!");
@@ -290,51 +261,73 @@ public class ClientUI {
             try {
                 String product = client.waitForConsecutiveSales(count);
                 if (product != null) {
-                    System.out.println("\n[Notification] " + count + " consecutive sales detected for product: " + product + "!");
+                    printSafe("\n[Notification] " + count + " consecutive sales detected for product: " + product + "!");
                 } else {
-                    System.out.println("\n[Notification] Day ended without " + count + " consecutive sales.");
+                    printSafe("\n[Notification] Day ended without " + count + " consecutive sales.");
                 }
             } catch (Exception e) {
-                System.out.println("\n[Notification] Error waiting for consecutive sales: " + e.getMessage());
+                printSafe("\n[Notification] Error waiting for consecutive sales: " + e.getMessage());
             }
         });
-
+        
         threads.add(t);
         t.start();
         System.out.println("Notification request submitted in background. You can continue using the menu.");
     }
 
     /**
-     * The main entry point for the ClientUI application.
-     * Sets up the interface responsible to interact with the server.
-     * Allows operations such as user authentication, registration of events, listing sales, etc
+     * Helper method to get days input with validation.
      */
-     public static void main(String[] args) {
+    private static int getDaysInput(Scanner scanner) {
+        int days = 0;
+        while (true) {
+            System.out.println("Enter number of days to aggregate:");
+            String daysInput = scanner.nextLine();
+            try {
+                days = Integer.parseInt(daysInput.trim());
+                if (days < 1) {
+                    System.out.println("Number of days must be at least 1.");
+                    continue;
+                }
+                break;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input! Please enter a valid integer.");
+            }
+        }
+        return days;
+    }
+
+    /**
+     * The main entry point for the ClientUI application.
+     */
+    public static void main(String[] args) {
         try (Scanner scanner = new Scanner(System.in)) {
             ClientStub client;
             try {
                 client = new ClientStub("localhost", 12345);
             } catch (IOException e) {
                 System.out.println(e.getMessage());
-                return; // Termina o programa sem stack trace
+                return;
             }
 
             int choice = 0;
             boolean validChoice = false;
+
             // Display initial menu for user choice: register, login, or exit
             while (!validChoice) {
+                System.out.println("\n========== SALES MANAGEMENT SYSTEM ==========");
                 System.out.println("Choose an option: ");
                 System.out.println("1. Log in ");
-                System.out.println("2. Register ");
+                System.out.println("2. Register new account");
                 System.out.println("3. Exit");
-
+                System.out.println("=============================================");
                 try {
                     choice = scanner.nextInt();
                     scanner.nextLine();
                     if (choice == 1 || choice == 2 || choice == 3) {
                         validChoice = true;
                     } else {
-                        System.out.println("Invalid option! Please choose 1 to Register, 2 to Log in, or 3 to Exit.");
+                        System.out.println("Invalid option! Please choose 1, 2, or 3.");
                     }
                 } catch (InputMismatchException e) {
                     System.out.println("Invalid input! Please enter a number (1, 2 or 3).");
@@ -353,97 +346,91 @@ public class ClientUI {
 
             // If authentication is successful, proceed with operations
             if (authenticated) {
-                System.out.println("You have successfully registered!");
+                System.out.println("\n✓ Authentication successful! Welcome to the system.");
                 boolean running = true;
                 List<Thread> threads = new ArrayList<>();
 
                 while (running) {
                     int operation = 0;
                     validChoice = false;
+                    
                     while (!validChoice) {
-                        System.out.println("Choose an operation: ");
-                        System.out.println("1. Register an Event");
-                        System.out.println("2. Sales Quantity");
-                        System.out.println("3. Sales Volume");
-                        System.out.println("4. Sale Average Price");
-                        System.out.println("5. Sale Max Price");
-                        System.out.println("6. End Day");
-                        System.out.println("7. Shutdown Server");
-                        System.out.println("8. Wait for Simultaneous Sales");
-                        System.out.println("9. Wait for Consecutive Sales");
-                        System.out.println("10. Exit");
-
+                        System.out.println("\n============== OPERATIONS MENU ==============");
+                        System.out.println("1.  Register a Sale - Add a new sale record");
+                        System.out.println("2.  Total Units Sold - Query quantity sold for a product");
+                        System.out.println("3.  Total Revenue - Calculate sales volume (quantity × price)");
+                        System.out.println("4.  Average Sale Price - Get mean price for a product");
+                        System.out.println("5.  Maximum Sale Price - Find highest price for a product");
+                        System.out.println("6.  End Current Day - Close day and process notifications");
+                        System.out.println("7.  Shutdown Server - Terminate server (admin only)");
+                        System.out.println("8.  Monitor Simultaneous Sales - Alert when 2 products sell together");
+                        System.out.println("9.  Monitor Consecutive Sales - Alert when N sales happen in a row");
+                        System.out.println("10. Exit Application");
+                        System.out.println("=============================================");
+                        System.out.print("Select operation (1-10): ");
+                        
                         try {
                             operation = scanner.nextInt();
                             scanner.nextLine();
                             if (operation >= 1 && operation <= 10) {
                                 validChoice = true;
                             } else {
-                                System.out.println("Invalid operation! Please choose a valid operation.");
+                                System.out.println("Invalid operation! Please choose between 1 and 10.");
                             }
                         } catch (InputMismatchException e) {
-                            System.out.println("Invalid input! Please enter a valid number between 1 and 10.");
+                            System.out.println("Invalid input! Please enter a number between 1 and 10.");
                             scanner.nextLine();
                         }
                     }
 
-                    switch(operation){
+                    switch(operation) {
                         case 1:
-                            handleAddSale(client, scanner);
+                            handleAddSale(client, scanner, threads);
                             break;
-
-                        case 2: 
-                            handleSalesQuantity(client, scanner);
+                        case 2:
+                            handleSalesQuantity(client, scanner, threads);
                             break;
-
-                        case 3: 
-                            handleSalesVolume(client, scanner);
+                        case 3:
+                            handleSalesVolume(client, scanner, threads);
                             break;
-
-                        case 4: 
-                            handleSalesAverage(client, scanner);
+                        case 4:
+                            handleSalesAverage(client, scanner, threads);
                             break;
-
-                        case 5: 
-                            handleSalesMaxPrice(client, scanner);
+                        case 5:
+                            handleSalesMaxPrice(client, scanner, threads);
                             break;
-
-                        case 6: // End Day operation
-                            try {
-                                String result = client.endDay();
-                                System.out.println(result);
-                            } catch (IOException e) {
-                                System.out.println("Error ending day: " + e.getMessage());
-                            }
+                        case 6:
+                            handleEndDay(client, threads);
                             break;
-
-                        case 7: // Shutdown Server
+                        case 7:
                             System.out.println("Are you sure you want to shutdown the server? (y/n)");
                             String confirm = scanner.nextLine().trim().toLowerCase();
                             if (confirm.equals("y") || confirm.equals("yes")) {
-                                try {
-                                    String result = client.shutdown();
-                                    System.out.println("Server response: " + result);
-                                    running = false;
-                                } catch (IOException e) {
-                                    System.out.println("Server shutdown initiated.");
-                                    running = false;
-                                }
+                                Thread shutdownThread = new Thread(() -> {
+                                    try {
+                                        String result = client.shutdown();
+                                        printSafe("[Response] Server response: " + result);
+                                    } catch (IOException e) {
+                                        printSafe("[Response] Server shutdown initiated.");
+                                    }
+                                });
+                                threads.add(shutdownThread);
+                                shutdownThread.start();
+                                System.out.println("Shutdown request sent. Exiting application...");
+                                running = false;
                             } else {
                                 System.out.println("Shutdown cancelled.");
                             }
                             break;
-
-                        case 8: // Wait for Simultaneous Sales
+                        case 8:
                             handleWaitForSimultaneousSales(client, scanner, threads);
                             break;
-
-                        case 9: // Wait for Consecutive Sales
+                        case 9:
                             handleWaitForConsecutiveSales(client, scanner, threads);
                             break;
-
-                        case 10: // Exit
+                        case 10:
                             running = false;
+                            System.out.println("\nWaiting for pending operations to complete...");
                             for (Thread t : threads) {
                                 try {
                                     t.join();
@@ -454,22 +441,20 @@ public class ClientUI {
                             }
                             try {
                                 client.close();
+                                System.out.println("Disconnected successfully. Goodbye!");
                             } catch (IOException e) {
                                 System.out.println("Error during disconnect: " + e.getMessage());
                             }
                             break;
-
                         default:
                             System.out.println("Invalid operation!");
                             break;
                     }
                 }
-
             } else {
-                System.out.println("Authentication failed!");
+                System.out.println("\n✗ Authentication failed! Please check your credentials.");
                 client.close();
             }
-        
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

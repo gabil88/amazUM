@@ -205,12 +205,8 @@ class ServerWorker implements Runnable {
         }
     }
 
-    /**
-     * Envia uma resposta ao cliente.
-     * Usada tanto para respostas síncronas (Login/Register/Disconnect) 
-     * como assíncronas (chamadas pela thread pool).
-     */
-    private synchronized void sendResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
+
+    private void sendResponse(TaggedConnection.Frame frame, RequestType requestType, ResponseWriter writer) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(baos);

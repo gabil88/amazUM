@@ -176,6 +176,7 @@ class ServerDatabase {
             // Reseta o estado global para o novo dia
             this.ordersCurDay = new HashMap<>();
             this.currentDay++;
+            notificationManager.advanceDay();
             newDay = this.currentDay; // Captura o novo valor dentro do lock
             
             System.out.println("Dia avançado para: " + this.currentDay);
