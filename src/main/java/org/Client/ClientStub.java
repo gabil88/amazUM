@@ -164,7 +164,7 @@ public class ClientStub implements IAmazUM, AutoCloseable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void disconnect() throws IOException {
         byte[] disconnect = new byte[0];
         
         try (DataInputStream dis = sendRequest(RequestType.Disconnect.getValue(), disconnect)) {
@@ -326,6 +326,15 @@ public class ClientStub implements IAmazUM, AutoCloseable {
                     return null;
                 }
             }
+        }
+    }
+
+    @Override
+    public void close(){
+        try{
+            disconnect();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

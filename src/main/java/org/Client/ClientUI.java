@@ -6,10 +6,16 @@ import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
+import org.Common.IAmazUM;
 
 public class ClientUI {
     
     private static final ReentrantLock consoleLock = new ReentrantLock();
+    private final IAmazUM client;
+
+    public ClientUI(IAmazUM client) {
+        this.client = client;
+    }
     
     /**
      * Imprime mensagem no console de forma thread-safe.
@@ -31,7 +37,7 @@ public class ClientUI {
      * @param choice 1 for login, 2 for register.
      * @return true if authentication/registration was successful, false otherwise.
      */
-    private static boolean handleAuthentication(ClientStub client, Scanner scanner, int choice) {
+    private static boolean handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
         printSafe("Enter your username: ");
         String username = scanner.nextLine();
         printSafe("Enter your password: ");
@@ -56,7 +62,7 @@ public class ClientUI {
      * @param scanner The scanner for user input.
      * @param threads The list of active threads to track.
      */
-    private static void handleAddSale(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleAddSale(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
@@ -107,7 +113,7 @@ public class ClientUI {
     /**
      * Handles the sales average price query in a separate thread.
      */
-    private static void handleSalesAverage(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleSalesAverage(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
@@ -129,7 +135,7 @@ public class ClientUI {
     /**
      * Handles the sales quantity query in a separate thread.
      */
-    private static void handleSalesQuantity(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleSalesQuantity(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
@@ -151,7 +157,7 @@ public class ClientUI {
     /**
      * Handles the sales volume query in a separate thread.
      */
-    private static void handleSalesVolume(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleSalesVolume(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
@@ -173,7 +179,7 @@ public class ClientUI {
     /**
      * Handles the sales max price query in a separate thread.
      */
-    private static void handleSalesMaxPrice(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleSalesMaxPrice(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter product name:");
         String productName = scanner.nextLine();
         
@@ -195,7 +201,7 @@ public class ClientUI {
     /**
      * Handles the end day operation in a separate thread.
      */
-    private static void handleEndDay(ClientStub client, List<Thread> threads) {
+    private static void handleEndDay(IAmazUM client, List<Thread> threads) {
         Thread t = new Thread(() -> {
             try {
                 String result = client.endDay();
@@ -212,7 +218,7 @@ public class ClientUI {
     /**
      * Handles the wait for simultaneous sales notification.
      */
-    private static void handleWaitForSimultaneousSales(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleWaitForSimultaneousSales(IAmazUM client, Scanner scanner, List<Thread> threads) {
         printSafe("Enter first product name:");
         String p1 = scanner.nextLine();
         printSafe("Enter second product name:");
@@ -239,7 +245,7 @@ public class ClientUI {
     /**
      * Handles the wait for consecutive sales notification.
      */
-    private static void handleWaitForConsecutiveSales(ClientStub client, Scanner scanner, List<Thread> threads) {
+    private static void handleWaitForConsecutiveSales(IAmazUM client, Scanner scanner, List<Thread> threads) {
         int n = 0;
         while (true) {
             printSafe("Enter number of consecutive sales:");
@@ -300,15 +306,8 @@ public class ClientUI {
     /**
      * The main entry point for the ClientUI application.
      */
-    public static void main(String[] args) {
+    public void start() {
         try (Scanner scanner = new Scanner(System.in)) {
-            ClientStub client;
-            try {
-                client = new ClientStub("localhost", 12345);
-            } catch (IOException e) {
-                printSafe(e.getMessage());
-                return;
-            }
 
             int choice = 0;
             boolean validChoice = false;
@@ -337,7 +336,7 @@ public class ClientUI {
 
             // If the user chooses to exit, close the client connection and exit
             if (choice == 3) {
-                client.close();
+                client.disconnect();
                 return;
             }
 
@@ -442,7 +441,7 @@ public class ClientUI {
                                 }
                             }
                             try {
-                                client.close();
+                                client.disconnect();
                                 printSafe("Disconnected successfully. Goodbye!");
                             } catch (IOException e) {
                                 printSafe("Error during disconnect: " + e.getMessage());
@@ -455,7 +454,7 @@ public class ClientUI {
                 }
             } else {
                 printSafe("\n✗ Authentication failed! Please check your credentials.");
-                client.close();
+                client.disconnect();
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

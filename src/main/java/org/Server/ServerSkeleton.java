@@ -175,4 +175,9 @@ public class ServerSkeleton implements IAmazUM {
         }
         return database.waitForConsecutiveSales(n);
     }
+
+    @Override
+    public void disconnect() throws IOException {
+        // Talvez adicionar algo que impeça um user de estar logado em dois terminais?
+    }
 }

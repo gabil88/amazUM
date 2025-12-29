@@ -178,34 +178,34 @@ class ServerDatabase {
             this.currentDay++;
             notificationManager.advanceDay();
             newDay = this.currentDay; // Captura o novo valor dentro do lock
-            
             System.out.println("Dia avançado para: " + this.currentDay);
 
+            try {
+                persistence.serializeDay(dataToSave, dayToSave);
+                persistence.saveCurrentDay(newDay); // Usa a variável local capturada
+                persistence.saveDictionary(dictionary);
+                return true;
+            } catch (IOException e) {
+                System.err.println("Erro ao salvar vendas do dia " + dayToSave + ": " + e.getMessage());
+                return false;
+            }
         } finally {
-            ordersLock.unlock(); // Liberta o lock imediatamente
-        }
-
-        // 2. Operação de I/O pesada feita SEM bloquear os clientes
-        // Como 'dataToSave' é uma variável local e a referência global já mudou,
-        // nenhuma outra thread vai mexer neste mapa. É seguro.
-        try {
-            persistence.serializeDay(dataToSave, dayToSave);
-            persistence.saveCurrentDay(newDay); // Usa a variável local capturada
-            persistence.saveDictionary(dictionary);
-            return true;
-        } catch (IOException e) {
-            System.err.println("Erro ao salvar vendas do dia " + dayToSave + ": " + e.getMessage());
-            return false;
+            ordersLock.unlock(); // Só liberta o lock após persistência
         }
     }
 
 
     public int shutdown() {
         ordersLock.lock();
+        usersLock.lock();
+
         try {
+            // ----- Secção crítica protegida -----
+
             persistence.saveCurrentDay(currentDay);
             persistence.saveDictionary(dictionary);
-            // Só serializa se houver dados no dia atual!
+
+            // Só serializa se houver dados no dia atual
             if (!ordersCurDay.isEmpty()) {
                 try {
                     persistence.serializeDay(ordersCurDay, currentDay);
@@ -213,21 +213,21 @@ class ServerDatabase {
                     System.err.println("Error saving current day orders: " + e.getMessage());
                 }
             }
+
+            persistence.saveUsers(users);
+
             // Acorda todos os clientes à espera de notificações
             notificationManager.shutdown();
+
+            return currentDay;
+
         } finally {
+            // FASE DE ENCOLHIMENTO: libertar locks (ordem inversa)
+            usersLock.unlock();
             ordersLock.unlock();
         }
-        
-        usersLock.lock();
-        try {
-            persistence.saveUsers(users);
-        } finally {
-            usersLock.unlock();
-        }
-        
-        return this.currentDay;
     }
+
 
     /**
      * Retrieves data from the last N days, including the current in-memory day.

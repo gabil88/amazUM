@@ -1,3 +1,7 @@
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper (file:/usr/share/maven/lib/guava.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
 [[1;34mINFO[m] Scanning for projects...
 [[1;34mINFO[m] 
 [[1;34mINFO[m] [1m-------------------------< [0;36morg.example:amazUM[0;1m >-------------------------[m
@@ -60,21 +64,19 @@ Sending authentication request
 Connected to the server: localhost:12345
 Sending authentication request
 Connected to the server: localhost:12345
-Sending authentication request
-Connected to the server: localhost:12345
-Sending authentication request
 Connected to the server: localhost:12345
 Connected to the server: localhost:12345
 Sending authentication request
 Sending authentication request
 Connected to the server: localhost:12345
 Sending authentication request
-[CHAOS] Ops: 19298 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 39062 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 58911 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 78808 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 98774 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 118479 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 138625 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 158728 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
-[CHAOS] Ops: 179117 | Erros: 0 (0.00%) | Network: 0 | Timeouts: 0
+Connected to the server: localhost:12345
+Sending authentication request
+Sending authentication request
+[CHAOS] Ops: 19045 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 38004 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 57057 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 75877 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 95138 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 114275 | Erros: 0 (0,00%) | Network: 0 | Timeouts: 0
+[CHAOS] Ops: 133717 | Erros: 277262 (207,35%) | Network: 277262 | Timeouts: 0
