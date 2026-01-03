@@ -11,6 +11,7 @@
 /home/gabil33/SD/amazUM/src/main/java/org/Server/ServerWorker.java
 /home/gabil33/SD/amazUM/src/main/java/org/Server/ServerSkeleton.java
 /home/gabil33/SD/amazUM/src/main/java/org/Utils/RequestType.java
+/home/gabil33/SD/amazUM/src/main/java/org/Server/Cache.java
 /home/gabil33/SD/amazUM/src/main/java/org/Client/Client.java
 /home/gabil33/SD/amazUM/src/main/java/org/Client/ClientStub.java
 /home/gabil33/SD/amazUM/src/main/java/org/Server/PersistenceManager.java

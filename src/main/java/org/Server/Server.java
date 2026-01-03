@@ -23,6 +23,7 @@ public class Server {
     private static final int MAX_CLIENTS = 20;
     private static final int DEFAULT_PORT = 12345;
     private static final int TASK_POOL_SIZE = 10;
+    private static final int CACHE_CAPACITY = 1000; // Capacidade da cache de agregações
 
     private final Thread[] workers = new Thread[MAX_CLIENTS]; 
     private final ReentrantLock lock = new ReentrantLock();
@@ -35,7 +36,8 @@ public class Server {
      */
     public Server() {
         this.database = new ServerDatabase();
-        this.handlers = new Handlers(database);
+        Cache cache = new Cache(CACHE_CAPACITY);
+        this.handlers = new Handlers(database, cache);
         this.skeleton = new ServerSkeleton(database, handlers);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
