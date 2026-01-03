@@ -20,7 +20,7 @@ import org.Utils.TaggedConnection;
  */
 public class ClientStub implements IAmazUM, AutoCloseable {
     /* Handles message multiplexing/demultiplexing */
-    private Demultiplexer demultiplexer;
+    private final Demultiplexer demultiplexer;
     /* Ensures thread-safe operations */
     private final ReentrantLock lock = new ReentrantLock();
     /* Unique identifier for each request */
@@ -163,8 +163,8 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         }
     }
 
-
-    public void close() throws IOException {
+    @Override
+    public void disconnect() throws IOException {
         byte[] disconnect = new byte[0];
         
         try (DataInputStream dis = sendRequest(RequestType.Disconnect.getValue(), disconnect)) {
@@ -173,8 +173,9 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         } catch (IOException e) {
             System.out.println("Desconectado.");
         }
-
-        demultiplexer.close();
+        finally {
+            demultiplexer.close();       
+        }
     }
 
     @Override
@@ -299,7 +300,6 @@ public class ClientStub implements IAmazUM, AutoCloseable {
     public boolean waitForSimultaneousSales(String p1, String p2) throws IOException {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
-            
             dos.writeUTF(p1);
             dos.writeUTF(p2);
             dos.flush();
@@ -326,6 +326,15 @@ public class ClientStub implements IAmazUM, AutoCloseable {
                     return null;
                 }
             }
+        }
+    }
+
+    @Override
+    public void close(){
+        try{
+            disconnect();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

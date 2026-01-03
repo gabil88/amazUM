@@ -1,12 +1,15 @@
 package org.Server;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 
 import org.Common.IAmazUM;
 import org.Utils.RequestType;
 import org.Utils.TaggedConnection;
-
-import java.io.*;
 
 /**
  * Class that represents a worker thread that handles communication with a
@@ -15,6 +18,7 @@ import java.io.*;
  * requests, processes them and sends back responses.
  */
 class ServerWorker implements Runnable {
+    private Server server;
     private Socket socket;
     private IAmazUM skeleton;
     private TaskPool taskPool;
@@ -34,7 +38,8 @@ class ServerWorker implements Runnable {
      * 
      * @throws RuntimeException if creating the TaggedConnection fails.
      */
-    public ServerWorker(Socket socket, IAmazUM skeleton, TaskPool taskPool) {
+    public ServerWorker(Socket socket, IAmazUM skeleton, TaskPool taskPool, Server server) {
+        this.server = server;
         this.socket = socket;
         this.skeleton = skeleton;
         this.taskPool = taskPool;
@@ -149,16 +154,6 @@ class ServerWorker implements Runnable {
                     case SimultaneousSales:
                         String p1 = in.readUTF();
                         String p2 = in.readUTF();
-                        
-                        // 1. Otimização: Verificar se já aconteceu (Fast Path)
-                        if (skeleton instanceof ServerSkeleton) {
-                            if (((ServerSkeleton) skeleton).checkSimultaneousSales(p1, p2)) {
-                                sendResponse(frame, requestType, (out) -> out.writeBoolean(true));
-                                break;
-                            }
-                        }
-                        
-                        // 2. Slow Path: Lançar thread para esperar
                         new Thread(() -> {
                             try {
                                 boolean result = skeleton.waitForSimultaneousSales(p1, p2);
@@ -171,20 +166,6 @@ class ServerWorker implements Runnable {
 
                     case ConsecutiveSales:
                         int n = in.readInt();
-                        
-                        // 1. Otimização: Verificar se já aconteceu (Fast Path)
-                        if (skeleton instanceof ServerSkeleton) {
-                            String quickResult = ((ServerSkeleton) skeleton).checkConsecutiveSales(n);
-                            if (quickResult != null) {
-                                sendResponse(frame, requestType, (out) -> {
-                                    out.writeBoolean(true);
-                                    out.writeUTF(quickResult);
-                                });
-                                break;
-                            }
-                        }
-
-                        // 2. Slow Path: Lançar thread para esperar
                         new Thread(() -> {
                             try {
                                 String result = skeleton.waitForConsecutiveSales(n);
@@ -201,6 +182,7 @@ class ServerWorker implements Runnable {
                             }
                         }).start();
                         break;
+                        
                     case Disconnect:
                         System.out.println("Client: " + socket.getInetAddress() + " is disconnecting ...");
                         sendResponse(frame, requestType, (out) -> out.writeUTF("Disconnect acknowledged"));
@@ -210,10 +192,11 @@ class ServerWorker implements Runnable {
                         // Handled at connection time, should not appear here
                         break;
                     case Shutdown:
-                        taskPool.submit(
-                            () -> skeleton.shutdown(),
-                            (result) -> sendResponse(frame, requestType, (out) -> out.writeUTF(result))
-                        );
+                        skeleton.shutdown();
+                        server.close();
+                        running = false;
+                        taskPool.shutdown();
+                        sendResponse(frame, requestType, (out) -> out.writeUTF("Shutdown acknowledged"));
                         break;
                 }
             }

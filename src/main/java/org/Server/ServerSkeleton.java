@@ -13,70 +13,71 @@ import org.Common.IAmazUM;
  * O ServerWorker utiliza esta classe para processar os pedidos recebidos.
  */
 public class ServerSkeleton implements IAmazUM {
-    
+
     private final ServerDatabase database;
     private final Handlers handlers;
-    
+
     /**
      * Cria um novo ServerSkeleton.
      * 
      * @param database Base de dados do servidor
-     * @param handlers Handlers para operações de consulta
+     * @param handlers Handlers para operações de consulta (com Cache)
      */
     public ServerSkeleton(ServerDatabase database, Handlers handlers) {
         this.database = database;
         this.handlers = handlers;
     }
-    
+
     // ==================== Autenticação ====================
-    
+
     @Override
     public boolean authenticate(String username, String password) throws IOException {
         return database.checkUserCredentials(username, password);
     }
-    
+
     @Override
     public boolean register(String username, String password) throws IOException {
         return database.createUser(username, password);
     }
-    
+
     // ==================== Operações de Venda ====================
-    
+
     @Override
     public boolean addSale(String productName, int quantity, double price) throws IOException {
         return database.addSaleRecord(productName, quantity, price);
     }
-    
-    // ==================== Consultas/Agregações ====================
-    
+
+    // ==================== Consultas/Agregações (Delegadas para Handlers/Cache)
+    // ====================
+
     @Override
     public double getSalesAveragePrice(String productName, int days) throws IOException {
         return handlers.getAveragePrice(productName, days);
     }
-    
+
     @Override
     public int getSalesQuantity(String productName, int days) throws IOException {
         return handlers.getTotalQuantitySold(productName, days);
     }
-    
+
     @Override
     public double getSalesVolume(String productName, int days) throws IOException {
         return handlers.getTotalSalesVolume(productName, days);
     }
-    
+
     @Override
     public double getSalesMaxPrice(String productName, int days) throws IOException {
         return handlers.getMaxPrice(productName, days);
     }
-    
+
     // ==================== Operações Administrativas ====================
-    
+
     @Override
     public String endDay() throws IOException {
         boolean success = database.endDay();
         return success ? "Day ended successfully." : "Failed to end day.";
     }
-    
+
     @Override
     public String shutdown() throws IOException {
         int lastDay = database.shutdown();
@@ -87,21 +88,23 @@ public class ServerSkeleton implements IAmazUM {
 
     @Override
     public boolean waitForSimultaneousSales(String p1, String p2) throws IOException, InterruptedException {
+
+        if (database.checkSimultaneousSales(p1, p2)) {
+            return true;
+        }
         return database.waitForSimultaneousSales(p1, p2);
     }
 
     @Override
     public String waitForConsecutiveSales(int n) throws IOException, InterruptedException {
+        if (database.checkConsecutiveSales(n) != null) {
+            return database.checkConsecutiveSales(n);
+        }
         return database.waitForConsecutiveSales(n);
     }
 
-    // Métodos auxiliares (NÃO estão na interface IAmazUM, mas são públicos para o Worker usar)
-    
-    public boolean checkSimultaneousSales(String p1, String p2) {
-        return database.checkSimultaneousSales(p1, p2);
-    }
-
-    public String checkConsecutiveSales(int n) {
-        return database.checkConsecutiveSales(n);
+    @Override
+    public void disconnect() throws IOException {
+        // Talvez adicionar algo que impeça um user de estar logado em dois terminais?
     }
 }

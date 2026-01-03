@@ -129,4 +129,6 @@ public interface IAmazUM {
      * @throws InterruptedException Se a thread for interrompida
      */
     String waitForConsecutiveSales(int n) throws IOException, InterruptedException;
+
+    void disconnect() throws IOException;
 }

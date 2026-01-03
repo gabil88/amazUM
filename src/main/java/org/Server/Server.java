@@ -1,31 +1,30 @@
 package org.Server;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.Utils.RequestType;
 import org.Utils.TaggedConnection;
-
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.io.IOException;
 
 /**
  * The main server class that listens for incoming client connections.
  */
 public class Server {
 
-    private ServerDatabase database;
-    private Handlers handlers;
-    private ServerSkeleton skeleton;
-    private TaskPool taskPool;
+    private final ServerDatabase database;
+    private final ServerSkeleton skeleton;
+    private final TaskPool taskPool;
+    private final Handlers handlers; // ADICIONADO: campo em falta
 
     // Configuration Constants
-    private static final int MAX_CLIENTS = 20;
+    private static final int MAX_CLIENTS = 100;
     private static final int DEFAULT_PORT = 12345;
-    private static final int TASK_POOL_SIZE = 10;
-    private static final int CACHE_CAPACITY = 1000; // Capacidade da cache de agregações
+    private static final int TASK_POOL_SIZE = 50;
+    private static final int CACHE_CAPACITY = 1000;
 
-    private final Thread[] workers = new Thread[MAX_CLIENTS]; 
+    private final Thread[] workers = new Thread[MAX_CLIENTS];
     private final ReentrantLock lock = new ReentrantLock();
 
     private boolean running = true;
@@ -57,6 +56,8 @@ public class Server {
     public void start(int port) {
         try {
             serverSocket = new ServerSocket(port);
+            // Define timeout de 1 segundo para aceitar conexões
+            serverSocket.setSoTimeout(1000);
             System.out.println("=== Servidor Iniciado ===");
             System.out.println("Porta: " + port);
             System.out.println("Aguardando conexões...\n");
@@ -69,26 +70,26 @@ public class Server {
                     try {
                         int slot = findFreeSlot();
                         TaggedConnection tc = new TaggedConnection(clientSocket);
-                        
+
                         if (slot == -1) {
                             System.out.println("Limite de clientes atingido. Conexão rejeitada.");
-                            tc.send(RequestType.Confirmation.getValue(), 
-                                   RequestType.Confirmation.getValue(),
-                                   new byte[] { 0 });
+                            tc.send(RequestType.Confirmation.getValue(),
+                                    RequestType.Confirmation.getValue(),
+                                    new byte[] { 0 });
                             tc.close();
-                            clientSocket.close(); 
+                            clientSocket.close();
                         } else {
-                            tc.send(RequestType.Confirmation.getValue(), 
-                                   RequestType.Confirmation.getValue(),
-                                   new byte[] { 1 });
+                            tc.send(RequestType.Confirmation.getValue(),
+                                    RequestType.Confirmation.getValue(),
+                                    new byte[] { 1 });
 
-                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool);
-                            
+                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool, this);
+
                             workers[slot] = new Thread(() -> {
                                 worker.run();
                                 lock.lock();
                                 try {
-                                    workers[slot] = null;  
+                                    workers[slot] = null;
                                 } finally {
                                     lock.unlock();
                                 }
@@ -98,6 +99,9 @@ public class Server {
                     } finally {
                         lock.unlock();
                     }
+                } catch (java.net.SocketTimeoutException ste) {
+                    // Timeout: permite re-verificar a flag running
+                    continue;
                 } catch (IOException e) {
                     if (!isRunning()) {
                         System.out.println("Server socket closed, stopping accept loop.");
@@ -143,6 +147,22 @@ public class Server {
         lock.lock();
         try {
             return running;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void close() {
+        lock.lock();
+        try {
+            running = false;
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    System.err.println("Error closing server socket: " + e.getMessage());
+                }
+            }
         } finally {
             lock.unlock();
         }

@@ -1,6 +1,9 @@
 package org.Server;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -16,6 +19,8 @@ public class NotificationManager {
     private int lastSoldId = -1;
     private int currentStreak = 0;
     private int currentDay;
+
+    private boolean shuttingDown = false;
 
     public NotificationManager(int initialDay) {
         this.currentDay = initialDay;
@@ -65,6 +70,23 @@ public class NotificationManager {
 
             for (Condition c : consecutiveWaiters.values()) c.signalAll();
             consecutiveWaiters.clear();
+            shuttingDown = false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Acorda todos os clientes à espera e impede novas esperas.
+     */
+    public void shutdown() {
+        lock.lock();
+        try {
+            shuttingDown = true;
+            for (Condition c : simultaneousWaiters.values()) c.signalAll();
+            simultaneousWaiters.clear();
+            for (Condition c : consecutiveWaiters.values()) c.signalAll();
+            consecutiveWaiters.clear();
         } finally {
             lock.unlock();
         }
@@ -110,11 +132,10 @@ public class NotificationManager {
 
             Condition cond = simultaneousWaiters.computeIfAbsent(pair, k -> lock.newCondition());
 
-            while (!soldProductIds.containsAll(pair) && currentDay == startDay) {
+            while (!soldProductIds.containsAll(pair) && currentDay == startDay && !shuttingDown) {
                 cond.await();
             }
-
-            return currentDay == startDay;
+            return currentDay == startDay && !shuttingDown;
         } finally {
             lock.unlock();
         }
@@ -129,12 +150,10 @@ public class NotificationManager {
 
             Condition cond = consecutiveWaiters.computeIfAbsent(n, k -> lock.newCondition());
 
-            while (currentStreak < n && currentDay == startDay) {
+            while (currentStreak < n && currentDay == startDay && !shuttingDown) {
                 cond.await();
             }
-
-            if (currentDay != startDay) return -1;
-
+            if (currentDay != startDay || shuttingDown) return -1;
             return lastSoldId;
         } finally {
             lock.unlock();

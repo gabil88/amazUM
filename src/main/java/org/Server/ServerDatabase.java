@@ -1,14 +1,15 @@
 package org.Server;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.concurrent.locks.ReentrantLock;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Class that represents the database of the server, including methods for handling users/clients, products and sales.
+ * Class that represents the database of the server, including methods for
+ * handling users/clients, products and sales.
  * 
  * Mantém os últimos M dias em memória para acesso rápido.
  */
@@ -18,13 +19,15 @@ class ServerDatabase {
 
     private int currentDay = 0;
 
-    private Dictionary dictionary;
+    private final Dictionary dictionary;
     private final PersistenceManager persistence;
 
     /* Map que guarda os últimos M dias em memória: dia -> (productId -> vendas) */
     private final Map<Integer, Map<Integer, List<Venda>>> daysInMemory;
-    
-    /* Map that stores the actual day's orders (dia em curso, ainda não terminado) */
+
+    /*
+     * Map that stores the actual day's orders (dia em curso, ainda não terminado)
+     */
     private Map<Integer, List<Venda>> ordersCurDay;
     private final ReentrantLock ordersLock = new ReentrantLock();
 
@@ -33,7 +36,7 @@ class ServerDatabase {
     private final ReentrantLock usersLock = new ReentrantLock();
 
     private final NotificationManager notificationManager;
-    
+
     /**
      * Default constructor for the ServerDatabase class.
      * 
@@ -43,17 +46,17 @@ class ServerDatabase {
         this.persistence = new PersistenceManager();
         this.ordersCurDay = new HashMap<>();
         this.daysInMemory = new HashMap<>();
-        
+
         // Load persisted data via PersistenceManager
         this.currentDay = persistence.loadCurrentDay();
         this.users = persistence.loadUsers();
         this.dictionary = persistence.loadDictionary();
-        
+
         // Carrega os últimos M dias para memória
         loadLastDaysToMemory();
 
         this.notificationManager = new NotificationManager(this.currentDay);
-        
+
         // DEBUG
         System.out.println("=== ServerDatabase Loaded ===");
         System.out.println("currentDay: " + this.currentDay);
@@ -61,19 +64,20 @@ class ServerDatabase {
         System.out.println("dictionary entries: " + this.dictionary);
         System.out.println("days in memory: " + this.daysInMemory.keySet());
     }
-    
+
     /**
      * Carrega os últimos M dias do disco para memória.
      */
     private void loadLastDaysToMemory() {
         for (int i = 1; i <= MAX_DAYS_IN_MEMORY; i++) {
             int dayToLoad = currentDay - i;
-            if (dayToLoad < 0) break;
-            
+            if (dayToLoad < 0)
+                break;
+
             loadDayToMemory(dayToLoad);
         }
     }
-    
+
     /**
      * Carrega um dia específico do disco para memória.
      * 
@@ -88,23 +92,24 @@ class ServerDatabase {
         }
         return false;
     }
-    
+
     /**
      * Remove o dia mais antigo da memória.
      */
     private void removeOldestDayFromMemory() {
-        if (daysInMemory.isEmpty()) return;
-        
+        if (daysInMemory.isEmpty())
+            return;
+
         int oldestDay = daysInMemory.keySet().stream()
                 .min(Integer::compareTo)
                 .orElse(-1);
-        
+
         if (oldestDay >= 0) {
             daysInMemory.remove(oldestDay);
             System.out.println("Removed day " + oldestDay + " from memory");
         }
     }
-    
+
     public int getCurrentDay() {
         ordersLock.lock();
         try {
@@ -125,7 +130,7 @@ class ServerDatabase {
     }
 
     // Expor metodos do NotificationManager via Database
-    
+
     public boolean checkSimultaneousSales(String p1, String p2) {
         int id1 = dictionary.get(p1);
         int id2 = dictionary.get(p2);
@@ -140,16 +145,17 @@ class ServerDatabase {
 
     public String checkConsecutiveSales(int n) {
         int id = notificationManager.checkConsecutiveSales(n);
-        if (id == -1) return null;
+        if (id == -1)
+            return null;
         return dictionary.get(id);
     }
 
     public String waitForConsecutiveSales(int n) throws InterruptedException {
         int id = notificationManager.waitForConsecutiveSales(n);
-        if (id == -1) return null;
+        if (id == -1)
+            return null;
         return dictionary.get(id);
     }
-
 
     /**
      * Checks if the provided credentials are valid.
@@ -171,7 +177,6 @@ class ServerDatabase {
         }
     }
 
-
     /**
      * Creates a new user in the database.
      * 
@@ -191,14 +196,13 @@ class ServerDatabase {
             this.usersLock.unlock();
         }
     }
-        
 
     /**
      * Adds a sale record to the current day's orders.
      * 
-     * @param produto Product name
+     * @param produto    Product name
      * @param quantidade Quantity sold
-     * @param preco Total price
+     * @param preco      Total price
      * @return true if sale record added successfully
      */
     public boolean addSaleRecord(String produto, int quantidade, double preco) {
@@ -216,7 +220,7 @@ class ServerDatabase {
             ordersLock.unlock();
         }
     }
-    
+
     public boolean endDay() {
         Map<Integer, List<Venda>> dataToSave;
         int dayToSave;
@@ -232,17 +236,20 @@ class ServerDatabase {
             this.ordersCurDay = new HashMap<>();
             this.currentDay++;
             newDay = this.currentDay;
-            
+
             // 2. Adiciona o dia terminado à memória
             if (!dataToSave.isEmpty()) {
                 daysInMemory.put(dayToSave, dataToSave);
             }
-            
+
             // 3. Remove o dia mais antigo se excedemos M dias
             if (daysInMemory.size() > MAX_DAYS_IN_MEMORY) {
                 removeOldestDayFromMemory();
             }
-            
+
+            // 4. Avança o dia no NotificationManager
+            notificationManager.advanceDay();
+
             System.out.println("Dia avançado para: " + this.currentDay);
             System.out.println("Dias em memória: " + this.daysInMemory.keySet());
 
@@ -250,7 +257,7 @@ class ServerDatabase {
             ordersLock.unlock();
         }
 
-        // 4. Operação de I/O pesada feita SEM bloquear os clientes
+        // 5. Operação de I/O pesada feita SEM bloquear os clientes
         try {
             persistence.serializeDay(dataToSave, dayToSave);
             persistence.saveCurrentDay(newDay);
@@ -262,14 +269,17 @@ class ServerDatabase {
         }
     }
 
-
     public int shutdown() {
         ordersLock.lock();
+        usersLock.lock();
+
         try {
+            // ----- Secção crítica protegida -----
+
             persistence.saveCurrentDay(currentDay);
             persistence.saveDictionary(dictionary);
-            
-            // Só serializa se houver dados no dia atual!
+
+            // Só serializa se houver dados no dia atual
             if (!ordersCurDay.isEmpty()) {
                 try {
                     persistence.serializeDay(ordersCurDay, currentDay);
@@ -277,18 +287,19 @@ class ServerDatabase {
                     System.err.println("Error saving current day orders: " + e.getMessage());
                 }
             }
+
+            persistence.saveUsers(users);
+
+            // Acorda todos os clientes à espera de notificações
+            notificationManager.shutdown();
+
+            return currentDay;
+
         } finally {
+            // FASE DE ENCOLHIMENTO: libertar locks (ordem inversa)
+            usersLock.unlock();
             ordersLock.unlock();
         }
-        
-        usersLock.lock();
-        try {
-            persistence.saveUsers(users);
-        } finally {
-            usersLock.unlock();
-        }
-        
-        return this.currentDay;
     }
 
     /**
@@ -330,7 +341,7 @@ class ServerDatabase {
 
         return combinedData;
     }
-    
+
     /**
      * Obtém dados de um dia específico.
      * Primeiro verifica memória, depois vai ao disco se necessário.
@@ -344,11 +355,9 @@ class ServerDatabase {
         if (inMemory != null) {
             return inMemory;
         }
-        
+
         // 2. Fallback: carrega do disco
         return persistence.deserializeDay(day);
     }
 
 }
-
-
