@@ -6,11 +6,37 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 public class ChaosMonkey {
-    private static final String[] PRODUCTS = {
-        "chaos_alpha", "chaos_beta", "chaos_gamma", "chaos_delta", 
-        "chaos_epsilon", "chaos_zeta", "chaos_eta", "chaos_theta"
-    };
-    
+        private static final String[] PRODUCTS = {
+            // Produtos Gregos (8)
+            "chaos_alpha", "chaos_beta", "chaos_gamma", "chaos_delta", 
+            "chaos_epsilon", "chaos_zeta", "chaos_eta", "chaos_theta",
+            "chaos_iota", "chaos_kappa", "chaos_lambda", "chaos_mu",
+            "chaos_nu", "chaos_xi", "chaos_omicron", "chaos_pi",
+            
+            // Produtos Latinos (16)
+            "chaos_primus", "chaos_secundus", "chaos_tertius", "chaos_quartus",
+            "chaos_quintus", "chaos_sextus", "chaos_septimus", "chaos_octavus",
+            "chaos_nonus", "chaos_decimus", "chaos_undecimus", "chaos_duodecimus",
+            "chaos_tertius_decimus", "chaos_quartus_decimus", "chaos_quintus_decimus", "chaos_sextus_decimus",
+            
+            // Produtos Elementos (16)
+            "chaos_hydrogen", "chaos_helium", "chaos_lithium", "chaos_beryllium",
+            "chaos_carbon", "chaos_nitrogen", "chaos_oxygen", "chaos_fluorine",
+            "chaos_neon", "chaos_sodium", "chaos_magnesium", "chaos_aluminum",
+            "chaos_silicon", "chaos_phosphorus", "chaos_sulfur", "chaos_chlorine",
+            
+            // Produtos Cores (16)
+            "chaos_crimson", "chaos_scarlet", "chaos_vermillion", "chaos_ruby",
+            "chaos_azure", "chaos_sapphire", "chaos_cobalt", "chaos_navy",
+            "chaos_emerald", "chaos_jade", "chaos_forest", "chaos_lime",
+            "chaos_amber", "chaos_gold", "chaos_topaz", "chaos_citrine",
+            
+            // Produtos Metais (16)
+            "chaos_iron", "chaos_copper", "chaos_silver", "chaos_gold_metal",
+            "chaos_platinum", "chaos_titanium", "chaos_chromium", "chaos_nickel",
+            "chaos_zinc", "chaos_tin", "chaos_lead", "chaos_mercury",
+            "chaos_aluminum_metal", "chaos_bronze", "chaos_brass", "chaos_steel"
+        };
     private static final AtomicLong totalOps = new AtomicLong(0);
     private static final AtomicLong errors = new AtomicLong(0);
     private static final AtomicLong networkErrors = new AtomicLong(0);

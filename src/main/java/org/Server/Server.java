@@ -20,9 +20,10 @@ public class Server {
     // Configuration Constants
     private static final int MAX_CLIENTS = 100;
     private static final int DEFAULT_PORT = 12345;
-    private static final int TASK_POOL_SIZE = 50;
+    private static final int TASK_POOL_SIZE = 70;
+    private static final int CACHE_CAPACITY = 300;
 
-    private final Thread[] workers = new Thread[MAX_CLIENTS]; 
+    private final Thread[] workers = new Thread[MAX_CLIENTS];
     private final ReentrantLock lock = new ReentrantLock();
 
     private boolean running = true;
@@ -33,7 +34,8 @@ public class Server {
      */
     public Server() {
         this.database = new ServerDatabase();
-        this.skeleton = new ServerSkeleton(database);
+        Cache cache = new Cache(CACHE_CAPACITY);
+        this.skeleton = new ServerSkeleton(database, cache);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
 
@@ -66,26 +68,26 @@ public class Server {
                     try {
                         int slot = findFreeSlot();
                         TaggedConnection tc = new TaggedConnection(clientSocket);
-                        
+
                         if (slot == -1) {
                             System.out.println("Limite de clientes atingido. Conexão rejeitada.");
-                            tc.send(RequestType.Confirmation.getValue(), 
-                                   RequestType.Confirmation.getValue(),
-                                   new byte[] { 0 });
+                            tc.send(RequestType.Confirmation.getValue(),
+                                    RequestType.Confirmation.getValue(),
+                                    new byte[] { 0 });
                             tc.close();
-                            clientSocket.close(); 
+                            clientSocket.close();
                         } else {
-                            tc.send(RequestType.Confirmation.getValue(), 
-                                   RequestType.Confirmation.getValue(),
-                                   new byte[] { 1 });
+                            tc.send(RequestType.Confirmation.getValue(),
+                                    RequestType.Confirmation.getValue(),
+                                    new byte[] { 1 });
 
-                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool,this);
-                            
+                            ServerWorker worker = new ServerWorker(clientSocket, skeleton, taskPool, this);
+
                             workers[slot] = new Thread(() -> {
                                 worker.run();
                                 lock.lock();
                                 try {
-                                    workers[slot] = null;  
+                                    workers[slot] = null;
                                 } finally {
                                     lock.unlock();
                                 }
