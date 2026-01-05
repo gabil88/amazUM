@@ -6,6 +6,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.Common.IAmazUM;
 import org.Utils.RequestType;
@@ -182,15 +184,33 @@ class ServerWorker implements Runnable {
                             }
                         }).start();
                         break;
+
+                    // -------- Filtro de Eventos ----------
+                    case FilterEvents:
+                        int count = in.readInt();
+                        List<String> products = new ArrayList<>();
+                        for (int i = 0; i < count; i++) {
+                            products.add(in.readUTF());
+                        }
+                        int daysAgo = in.readInt();
+
+                        taskPool.submit(
+                            () -> skeleton.filterEvents(products, daysAgo),
+                            (result) -> sendResponse(frame, requestType,
+                                (out) -> result.serialize(out))
+                        );
+                        break;
                         
                     case Disconnect:
                         System.out.println("Client: " + socket.getInetAddress() + " is disconnecting ...");
                         sendResponse(frame, requestType, (out) -> out.writeUTF("Disconnect acknowledged"));
                         running = false;
                         break;
+                    
                     case Confirmation:
                         // Handled at connection time, should not appear here
                         break;
+                    
                     case Shutdown:
                         skeleton.shutdown();
                         server.close();

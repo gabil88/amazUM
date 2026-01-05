@@ -2,11 +2,13 @@ package org.Client;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
 import org.Common.IAmazUM;
+import org.Common.FilteredEvents;
 
 public class ClientUI {
     
@@ -282,6 +284,75 @@ public class ClientUI {
     }
 
     /**
+     * Handles the filter events in a separated thread.
+     */
+    private static void handleFilterEvents(IAmazUM client, Scanner scanner, List<Thread> threads) {
+        List<String> productsInput;
+
+        while (true) {
+            printSafe("Enter product names (comma-separated):");
+            String line = scanner.nextLine();
+
+            productsInput = Arrays.stream(line.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+
+            if (!productsInput.isEmpty())
+                break;
+            
+            printSafe("[Response] Products list cannot be empty. Please enter at least one product.");
+        }
+
+        final List<String> products = productsInput;
+
+        int days = getDaysInput(scanner);
+
+        Thread t = new Thread(() -> {
+            try {
+                FilteredEvents fe = client.filterEvents(products, days);
+
+                if (fe.getEventsByProduct().isEmpty()) {
+                    printSafe("[Response] No events found.");
+                    return;
+                }
+
+                /**
+                 * The FilteredEvents follows a format where each product appears once and is
+                 * associated with a list of (quantity, price) event pairs, e.g:
+                 * 
+                 * Product | Quantity, Price | Quantity, Price | (...) |
+                 */
+                for (var entry : fe.getEventsByProduct().entrySet()) {
+                    String product = entry.getKey();
+                    List<FilteredEvents.Event> events = entry.getValue();
+
+                    if (events.isEmpty()) continue;
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Product: ").append(product).append(" | ");
+
+                    for (FilteredEvents.Event e : events) {
+                        sb.append("Qty: ")
+                        .append(e.quantity)
+                        .append(", Price: ")
+                        .append(String.format("%.2f", e.price))
+                        .append(" | ");
+                    }
+
+                    printSafe(sb.toString());
+                }
+
+            } catch (IOException e) {
+                printSafe("[Response] Error filtering events: " + e.getMessage());
+            }
+        });
+
+        threads.add(t);
+        t.start();
+    }
+    
+    /**
      * Helper method to get days input with validation.
      */
     private static int getDaysInput(Scanner scanner) {
@@ -365,15 +436,16 @@ public class ClientUI {
                             "7.  Shutdown Server - Terminate server (admin only)\n" +
                             "8.  Monitor Simultaneous Sales - Alert when 2 products sell together\n" +
                             "9.  Monitor Consecutive Sales - Alert when N sales happen in a row\n" +
-                            "10. Exit Application\n" +
+                            "10. Filter Events (Time Series)\n" +
+                            "11. Exit Application\n" +
                             "=============================================\n" +
-                            "Select operation (1-10): ";
+                            "Select operation (1-11): ";
                             printSafe(menu);
                         
                         try {
                             operation = scanner.nextInt();
                             scanner.nextLine();
-                            if (operation >= 1 && operation <= 10) {
+                            if (operation >= 1 && operation <= 11) {
                                 validChoice = true;
                             } else {
                                 printSafe("Invalid operation! Please choose between 1 and 10.");
@@ -430,6 +502,9 @@ public class ClientUI {
                             handleWaitForConsecutiveSales(client, scanner, threads);
                             break;
                         case 10:
+                            handleFilterEvents(client, scanner, threads);
+                            break;
+                        case 11:
                             running = false;
                             printSafe("\nWaiting for pending operations to complete...");
                             for (Thread t : threads) {

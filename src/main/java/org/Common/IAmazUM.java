@@ -1,6 +1,7 @@
 package org.Common;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Interface que define todas as operações disponíveis no sistema amazUM.
@@ -129,6 +130,16 @@ public interface IAmazUM {
      * @throws InterruptedException Se a thread for interrompida
      */
     String waitForConsecutiveSales(int n) throws IOException, InterruptedException;
+
+    /**
+     * Filtra eventos de vendas de um conjunto de produtos relativos aos últimos N dias.
+     *
+     * @param products Conjunto de produtos
+     * @param daysAgo Número de dias a considerar
+     * @throws IOException Erro de rede
+     * @return Estrutura serializável compacta com os eventos
+     */
+    FilteredEvents filterEvents(List<String> products, int daysAgo) throws IOException;
 
     void disconnect() throws IOException;
 }

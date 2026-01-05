@@ -16,6 +16,7 @@ public enum RequestType {
     Shutdown((short) 9),
     SimultaneousSales((short)10),
     ConsecutiveSales((short)11),
+    FilterEvents((short)12),
     Confirmation((short)99); // ou outro valor não usado
 
     private final short value;

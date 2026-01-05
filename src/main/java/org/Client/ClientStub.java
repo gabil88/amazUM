@@ -6,8 +6,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.Common.FilteredEvents;
 import org.Common.IAmazUM;
 import org.Utils.Demultiplexer;
 import org.Utils.RequestType;
@@ -329,6 +331,36 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         }
     }
 
+    // ========== Filtro de Eventos ==========
+    
+    /**
+     * Gets the FilteredEvents from a list of product names and the number of days to look back.
+     * 
+     * @param products      The list of products to filter.
+     * @param days          The number of last days to consider.
+     * @return              The FilteredEvents object, containing all filtered sales events grouped by product
+     * @throws IOExpcetion  if there is an issue during the request.
+     */
+    @Override
+    public FilteredEvents filterEvents(List<String> products, int days) throws IOException {
+        byte[] requestData;
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos)) {
+
+            dos.writeInt(products.size());
+            for (String p : products)
+                dos.writeUTF(p);
+
+            dos.writeInt(days);
+            requestData = baos.toByteArray();
+        }
+
+        try (DataInputStream dis = sendRequest(RequestType.FilterEvents.getValue(), requestData)) {
+            return FilteredEvents.deserialize(dis);
+        }
+    }
+    
     @Override
     public void close(){
         try{

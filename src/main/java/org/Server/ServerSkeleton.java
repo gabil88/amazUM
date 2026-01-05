@@ -1,9 +1,12 @@
 package org.Server;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.Common.FilteredEvents;
 import org.Common.IAmazUM;
 
 /**
@@ -291,6 +294,55 @@ public class ServerSkeleton implements IAmazUM {
             return database.checkConsecutiveSales(n);
         }
         return database.waitForConsecutiveSales(n);
+    }
+
+   
+    /**
+     * Builds and returns the FilteredEvents object, from a list of products' names 
+     * and the number of days to look back, containing all filtered sales events grouped by product.
+     * 
+     * @param products  The list of products to filter.
+     * @param days      The number of days to look back.
+     * @return          The FilteredEvents object.
+     */
+    @Override
+    public FilteredEvents filterEvents(List<String> products, int days) {
+        int currentDay = database.getCurrentDay();
+        if (days < 1 || currentDay < 0)
+            return new FilteredEvents(Map.of());
+
+        Map<String, List<FilteredEvents.Event>> result = new HashMap<>();
+
+        for (String product : products) {
+            result.put(product, new ArrayList<>());
+        }
+
+        // Iterates through the last N given days
+        for (int i = 1; i <= days; i++) {
+            int day = currentDay - i;
+            if (day < 0) break;
+
+            // Date from the day, either in memory or disk
+            Map<Integer, List<Venda>> dayData = database.getDayData(day);
+
+            for (String productName : products) {
+                int productId = database.getProductId(productName);
+
+                List<Venda> vendas = dayData.get(productId);
+                if (vendas != null) {
+                    for (Venda v : vendas) {
+                        result.get(productName).add(
+                            new FilteredEvents.Event(
+                                v.getQuantidade(),
+                                v.getPreco()
+                            )
+                        );
+                    }
+                }
+            }
+        }
+
+        return new FilteredEvents(result);
     }
 
     @Override
