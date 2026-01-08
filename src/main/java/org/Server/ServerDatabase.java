@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Class that represents the database of the server, including methods for
@@ -35,6 +36,9 @@ class ServerDatabase {
     private Map<String, String> users;
     private final ReentrantLock usersLock = new ReentrantLock();
 
+    private final Map<String, Map<Integer, String>> userDictionaries;
+    private final ReentrantReadWriteLock userDictLock = new ReentrantReadWriteLock();
+
     private final NotificationManager notificationManager;
 
     /**
@@ -46,6 +50,7 @@ class ServerDatabase {
         this.persistence = new PersistenceManager();
         this.ordersCurDay = new HashMap<>();
         this.daysInMemory = new HashMap<>();
+        this.userDictionaries = new HashMap<>();
 
         // Load persisted data via PersistenceManager
         this.currentDay = persistence.loadCurrentDay();
@@ -127,6 +132,39 @@ class ServerDatabase {
      */
     public int getProductId(String productName) {
         return dictionary.get(productName);
+    }
+
+    /**
+     * Gets the product name for a given product ID
+     * 
+     * @param productId The id of the product
+     * @return The corresponding product name
+     */
+    public String getProductName(int productId) {
+        return dictionary.get(productId);
+    }
+
+    /**
+     * Gets the user's personal dictionary.
+     * 
+     * @param username The username to find the dictionary associated.
+     * @return The corresponding personal dictionary
+     */
+    public Map<Integer, String> getUserDictionary(String username) {
+        userDictLock.readLock().lock();
+        try {
+            Map<Integer, String> dict = userDictionaries.get(username);
+            if (dict != null) return dict;
+        } finally {
+            userDictLock.readLock().unlock();
+        }
+
+        userDictLock.writeLock().lock();
+        try {
+            return userDictionaries.computeIfAbsent(username, u -> new HashMap<>());
+        } finally {
+            userDictLock.writeLock().unlock();
+        }
     }
 
     // Expor metodos do NotificationManager via Database

@@ -5,18 +5,22 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.InputMismatchException;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
-import org.Common.IAmazUM;
+
 import org.Common.FilteredEvents;
+import org.Common.IAmazUM;
 
 public class ClientUI {
     
     private static final ReentrantLock consoleLock = new ReentrantLock();
     private final IAmazUM client;
+    private String clientUsername;
 
     public ClientUI(IAmazUM client) {
         this.client = client;
+        this.clientUsername = "";
     }
     
     /**
@@ -37,9 +41,9 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      * @param choice 1 for login, 2 for register.
-     * @return true if authentication/registration was successful, false otherwise.
+     * @return the username when authentication/registration succeeded, or null on failure.
      */
-    private static boolean handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
+    private static String handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
         printSafe("Enter your username: ");
         String username = scanner.nextLine();
         printSafe("Enter your password: ");
@@ -47,13 +51,15 @@ public class ClientUI {
 
         try {
             if (choice == 1) {
-                return client.authenticate(username, password);
+                boolean authenticated = client.authenticate(username, password);
+                return authenticated ? username : null;
             } else {
-                return client.register(username, password);
+                boolean registered = client.register(username, password);
+                return registered ? username : null;
             }
         } catch (IOException e) {
             printSafe("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
-            return false;
+            return null;
         }
     }
 
@@ -286,7 +292,7 @@ public class ClientUI {
     /**
      * Handles the filter events in a separated thread.
      */
-    private static void handleFilterEvents(IAmazUM client, Scanner scanner, List<Thread> threads) {
+    private static void handleFilterEvents(IAmazUM client, String username, Scanner scanner, List<Thread> threads) {
         List<String> productsInput;
 
         while (true) {
@@ -310,34 +316,48 @@ public class ClientUI {
 
         Thread t = new Thread(() -> {
             try {
-                FilteredEvents fe = client.filterEvents(products, days);
+                FilteredEvents fe = client.filterEvents(username, products, days);
 
                 if (fe.getEventsByProduct().isEmpty()) {
                     printSafe("[Response] No events found.");
                     return;
                 }
 
-                /**
-                 * The FilteredEvents follows a format where each product appears once and is
-                 * associated with a list of (quantity, price) event pairs, e.g:
-                 * 
-                 * Product | Quantity, Price | Quantity, Price | (...) |
-                 */
+                Map<Integer, String> dict = fe.getDictionaryUpdate();
+
+                if (dict != null && !dict.isEmpty()) {
+                    //printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
+                } else {
+                    //printSafe("[Info] No dictionary update received from server.");
+                }
+
                 for (var entry : fe.getEventsByProduct().entrySet()) {
-                    String product = entry.getKey();
+                    Integer productId = entry.getKey();
                     List<FilteredEvents.Event> events = entry.getValue();
 
                     if (events.isEmpty()) continue;
 
+                    String productName = null;
+                    if (dict != null) {
+                        productName = dict.get(productId);
+                        if (productName != null) {
+                            //printSafe("[Info] Product id " + productId + " name obtained from dictionary: " + productName);
+                        }
+                    }
+                    if (productName == null) {
+                        productName = ((ClientStub) client).getProductName(productId);
+                        //printSafe("[Info] Product id " + productId + " name fetched from server: " + productName);
+                    }
+
                     StringBuilder sb = new StringBuilder();
-                    sb.append("Product: ").append(product).append(" | ");
+                    sb.append("Product: ").append(productName).append(" | ");
 
                     for (FilteredEvents.Event e : events) {
                         sb.append("Qty: ")
-                        .append(e.quantity)
-                        .append(", Price: ")
-                        .append(String.format("%.2f", e.price))
-                        .append(" | ");
+                                .append(e.quantity)
+                                .append(", Price: ")
+                                .append(String.format("%.2f", e.price))
+                                .append(" | ");
                     }
 
                     printSafe(sb.toString());
@@ -412,7 +432,10 @@ public class ClientUI {
             }
 
             // Handle authentication/registration
-            boolean authenticated = handleAuthentication(client, scanner, choice);
+            String authenticatedUsername = handleAuthentication(client, scanner, choice);
+            boolean authenticated = authenticatedUsername != null;
+            if (authenticated) 
+                this.clientUsername = authenticatedUsername;
 
             // If authentication is successful, proceed with operations
             if (authenticated) {
@@ -502,7 +525,7 @@ public class ClientUI {
                             handleWaitForConsecutiveSales(client, scanner, threads);
                             break;
                         case 10:
-                            handleFilterEvents(client, scanner, threads);
+                            handleFilterEvents(client, this.clientUsername, scanner, threads);
                             break;
                         case 11:
                             running = false;

@@ -26,7 +26,7 @@ class ServerWorker implements Runnable {
     private TaskPool taskPool;
     private TaggedConnection taggedConnection;
     private volatile boolean running;
-
+    
     private interface ResponseWriter {
         void write(DataOutputStream out) throws IOException;
     }
@@ -187,6 +187,7 @@ class ServerWorker implements Runnable {
 
                     // -------- Filtro de Eventos ----------
                     case FilterEvents:
+                        String eventsUsername = in.readUTF();
                         int count = in.readInt();
                         List<String> products = new ArrayList<>();
                         for (int i = 0; i < count; i++) {
@@ -195,7 +196,7 @@ class ServerWorker implements Runnable {
                         int daysAgo = in.readInt();
 
                         taskPool.submit(
-                            () -> skeleton.filterEvents(products, daysAgo),
+                            () -> skeleton.filterEvents(eventsUsername, products, daysAgo),
                             (result) -> sendResponse(frame, requestType,
                                 (out) -> result.serialize(out))
                         );

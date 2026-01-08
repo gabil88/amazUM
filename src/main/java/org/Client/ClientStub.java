@@ -6,7 +6,9 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.Common.FilteredEvents;
@@ -21,6 +23,11 @@ import org.Utils.TaggedConnection;
  * e enviando-os através de uma conexão TCP.
  */
 public class ClientStub implements IAmazUM, AutoCloseable {
+
+    /* Stores the personal dictionary used to map product ids into strings */
+    private final Map<Integer, String> productDictionary = new HashMap<>();
+    /* Ensures thread-safe updates from the personal dictionary */
+    private final ReentrantLock dictLock = new ReentrantLock();
     /* Handles message multiplexing/demultiplexing */
     private final Demultiplexer demultiplexer;
     /* Ensures thread-safe operations */
@@ -334,20 +341,44 @@ public class ClientStub implements IAmazUM, AutoCloseable {
     // ========== Filtro de Eventos ==========
     
     /**
+     * Returns the product name associated with the given product id.
+     *
+     * Precondition:
+     * The product dictionary must already contain a mapping for this id.
+     * This is guaranteed by the server, which always sends missing mappings
+     * together with the filtered events response.
+     * 
+     * @param productId The productId to be mapped to a String.
+     * @return The product name associated with the given product id.
+     */
+    public String getProductName(int productId) {
+        dictLock.lock();
+        try {
+            return productDictionary.get(productId);
+        } finally {
+            dictLock.unlock();
+        }
+    }
+
+    /**
      * Gets the FilteredEvents from a list of product names and the number of days to look back.
      * 
+     * This method may also update the Client's personal product dictionary sent by the server.
+     * 
+     * @param username      The username of the client.
      * @param products      The list of products to filter.
      * @param days          The number of last days to consider.
-     * @return              The FilteredEvents object, containing all filtered sales events grouped by product
+     * @return              The FilteredEvents object, containing all filtered sales events grouped by product.
      * @throws IOExpcetion  if there is an issue during the request.
      */
     @Override
-    public FilteredEvents filterEvents(List<String> products, int days) throws IOException {
+    public FilteredEvents filterEvents(String username, List<String> products, int days) throws IOException {
         byte[] requestData;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos)) {
 
+            dos.writeUTF(username);
             dos.writeInt(products.size());
             for (String p : products)
                 dos.writeUTF(p);
@@ -357,7 +388,20 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         }
 
         try (DataInputStream dis = sendRequest(RequestType.FilterEvents.getValue(), requestData)) {
-            return FilteredEvents.deserialize(dis);
+            FilteredEvents fe = FilteredEvents.deserialize(dis);
+
+            // Update personal dictionary
+            Map<Integer, String> dictUpdate = fe.getDictionaryUpdate();
+            if (dictUpdate != null && !dictUpdate.isEmpty()) {
+                dictLock.lock();
+                try {
+                    productDictionary.putAll(dictUpdate);
+                } finally {
+                    dictLock.unlock();
+                }
+            }
+
+            return fe;
         }
     }
     
