@@ -63,8 +63,12 @@ public class TaskPool {
     /**
      * Submete uma tarefa para execução assíncrona.
      * 
+     * IMPORTANT: responseHandler is only called on successful task completion.
+     * On task failure (Exception/Throwable), the handler is NOT called - the caller
+     * should implement timeouts to detect failures. This prevents NPEs from null results.
+     * 
      * @param task O Callable a executar
-     * @param responseHandler O handler a chamar com o resultado (ou null em caso de erro)
+     * @param responseHandler O handler a chamar com o resultado (only on success)
      */
     public <T> void submit(Callable<T> task, Consumer<T> responseHandler) {
         lock.lock();
@@ -82,17 +86,15 @@ public class TaskPool {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     logError("Tarefa interrompida");
+                    // Don't call responseHandler on interruption - let timeout detect it
                 } catch (Exception e) {
                     logError("Erro na execução da tarefa: " + e.getClass().getSimpleName(), e);
-                    // Tenta notificar o handler com null para indicar erro
-                    try {
-                        responseHandler.accept(null);
-                    } catch (Exception handlerException) {
-                        logError("Erro ao chamar responseHandler com null", handlerException);
-                    }
+                    // Don't call responseHandler on exception - let timeout/caller detect failure
+                    // Previously called responseHandler.accept(null) which caused NPEs downstream
                 } catch (Throwable t) {
                     // Captura qualquer erro crítico que possa ocorrer
                     logError("Erro crítico na execução da tarefa: " + t.getClass().getSimpleName(), t);
+                    // Don't call responseHandler - critical errors should not propagate null
                 }
             });
             
