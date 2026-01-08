@@ -150,6 +150,7 @@ class ServerWorker implements Runnable {
 
         if (requestType == null) {
             logError("Unknown request type: " + frame.requestType);
+            sendErrorResponse(frame, "Unknown request type: " + frame.requestType);
             return;
         }
 
@@ -288,11 +289,12 @@ class ServerWorker implements Runnable {
             
             case Shutdown:
                 logInfo("Shutdown requested");
+                sendResponse(frame, requestType, (out) -> out.writeUTF("Shutdown acknowledged"));
+                // Now shutdown resources
                 skeleton.shutdown();
                 server.close();
                 running = false;
                 taskPool.shutdown();
-                sendResponse(frame, requestType, (out) -> out.writeUTF("Shutdown acknowledged"));
                 break;
         }
     }
