@@ -12,18 +12,26 @@ import java.util.Map;
  * Represents filtered sales events grouped by product.
  *
  * Format (binary):
- *  int numProducts
- *    UTF productName
- *    int numEvents
- *      int quantity
- *      double price
+ * if true:
+ *    int dictSize
+ *    repeat dictSize:
+ *       int productId
+ *       UTF productName
+ *
+ * int numProducts
+ * repeat numProducts:
+ *     int productId
+ *     int numEvents
+ *     repeat numEvents:
+ *         int quantity
+ *         double price
  */
 public class FilteredEvents {
 
-    /**
-     * Map containing for each product its list of events object, containing its quantity and price
-     */
-    private final Map<String, List<Event>> eventsByProduct;
+    /* Dictionary used to map a product id to its product name */
+    private final Map<Integer, String> dictionaryUpdate;
+    /** Map containing for each product its list of events object, containing its quantity and price */
+    private final Map<Integer, List<Event>> eventsByProduct;
 
     public static class Event {
         public final int quantity;
@@ -35,11 +43,16 @@ public class FilteredEvents {
         }
     }
 
-    public FilteredEvents(Map<String, List<Event>> eventsByProduct) {
+    public FilteredEvents(Map<Integer, String> dictionaryUpdate, Map<Integer, List<Event>> eventsByProduct) {
         this.eventsByProduct = eventsByProduct;
+        this.dictionaryUpdate = dictionaryUpdate;
     }
 
-    public Map<String, List<Event>> getEventsByProduct() {
+    public Map<Integer, String> getDictionaryUpdate() {
+        return dictionaryUpdate;
+    }
+
+    public Map<Integer, List<Event>> getEventsByProduct() {
         return eventsByProduct;
     }
 
@@ -49,13 +62,26 @@ public class FilteredEvents {
      * Serializes the FilteredEvents instance to a DataOutputStream.
      */
     public void serialize(DataOutputStream out) throws IOException {
-        out.writeInt(eventsByProduct.size());
+        
+        // Serialize Dictionary
+        if(dictionaryUpdate != null && !dictionaryUpdate.isEmpty()){
+            out.writeBoolean(true);
+            out.writeInt(dictionaryUpdate.size());
+            for(Map.Entry<Integer, String> dict: dictionaryUpdate.entrySet()){
+                out.writeInt(dict.getKey());
+                out.writeUTF(dict.getValue());
+            }
+        } else {
+            out.writeBoolean(false);
+        }
 
-        for (Map.Entry<String, List<Event>> entry : eventsByProduct.entrySet()) {
-            String product = entry.getKey();
+        // Serialize Events
+        out.writeInt(eventsByProduct.size());
+        for (Map.Entry<Integer, List<Event>> entry : eventsByProduct.entrySet()) {
+            Integer product = entry.getKey();
             List<Event> events = entry.getValue();
 
-            out.writeUTF(product);
+            out.writeInt(product);
             out.writeInt(events.size());
 
             for (Event e : events) {
@@ -69,23 +95,37 @@ public class FilteredEvents {
      * Deserializes the FilteredEvents instance from a DataInputStream.
      */
     public static FilteredEvents deserialize(DataInputStream in) throws IOException {
+        
+        Map<Integer, String> dict = null;
+
+        boolean hasDict = in.readBoolean();
+        if (hasDict) {
+            int size = in.readInt();
+            dict = new HashMap<>(size);
+            for (int i = 0; i < size; i++) {
+                int id = in.readInt();
+                String name = in.readUTF();
+                dict.put(id, name);
+            }
+        }
+        
         int numProducts = in.readInt();
-        Map<String, List<Event>> map = new HashMap<>();
+        Map<Integer, List<Event>> events = new HashMap<>();
 
         for (int i = 0; i < numProducts; i++) {
-            String product = in.readUTF();
+            Integer product = in.readInt();
             int numEvents = in.readInt();
 
-            List<Event> events = new ArrayList<>(numEvents);
+            List<Event> list = new ArrayList<>(numEvents);
             for (int j = 0; j < numEvents; j++) {
                 int quantity = in.readInt();
                 double price = in.readDouble();
-                events.add(new Event(quantity, price));
+                list.add(new Event(quantity, price));
             }
 
-            map.put(product, events);
+            events.put(product, list);
         }
 
-        return new FilteredEvents(map);
+        return new FilteredEvents(dict, events);
     }
 }

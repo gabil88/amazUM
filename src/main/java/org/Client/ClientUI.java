@@ -6,11 +6,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.InputMismatchException;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
-import org.Common.IAmazUM;
+
 import org.Common.FilteredEvents;
 import org.Common.NetworkException;
+import org.Common.IAmazUM;
 
 public class ClientUI {
     
@@ -19,9 +21,11 @@ public class ClientUI {
     private static final String ERROR_PREFIX = "[ERRO] ";
     private static final String INFO_PREFIX = "[INFO] ";
     private static final String RESPONSE_PREFIX = "[Response] ";
+    private String clientUsername;
 
     public ClientUI(IAmazUM client) {
         this.client = client;
+        this.clientUsername = "";
     }
     
     /**
@@ -73,16 +77,16 @@ public class ClientUI {
      * @param client The client library instance.
      * @param scanner The scanner for user input.
      * @param choice 1 for login, 2 for register.
-     * @return true if authentication/registration was successful, false otherwise.
+     * @return the username when authentication/registration succeeded, or null on failure.
      */
-    private static boolean handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
+    private static String handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
         try {
             printSafe("Enter your username: ");
             String username = scanner.nextLine().trim();
             
             if (username.isEmpty()) {
                 printError("Username cannot be empty.");
-                return false;
+                return null;
             }
             
             printSafe("Enter your password: ");
@@ -90,20 +94,19 @@ public class ClientUI {
             
             if (password.isEmpty()) {
                 printError("Password cannot be empty.");
-                return false;
+                return null;
             }
 
             if (choice == 1) {
-                return client.authenticate(username, password);
+                boolean authenticated = client.authenticate(username, password);
+                return authenticated ? username : null;
             } else {
-                return client.register(username, password);
+                boolean registered = client.register(username, password);
+                return registered ? username : null;
             }
         } catch (IOException e) {
-            handleNetworkError(e);
-            return false;
-        } catch (Exception e) {
-            printError("Erro inesperado durante " + (choice == 1 ? "autenticação" : "registo") + ": " + e.getMessage());
-            return false;
+            printSafe("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
+            return null;
         }
     }
 
@@ -425,7 +428,7 @@ public class ClientUI {
     /**
      * Handles the filter events in a separated thread.
      */
-    private static void handleFilterEvents(IAmazUM client, Scanner scanner, List<Thread> threads) {
+    private static void handleFilterEvents(IAmazUM client, String username, Scanner scanner, List<Thread> threads) {
         try {
             List<String> productsInput;
 
@@ -448,37 +451,51 @@ public class ClientUI {
 
             int days = getDaysInput(scanner);
 
-            Thread t = new Thread(() -> {
-                try {
-                    FilteredEvents fe = client.filterEvents(products, days);
+        Thread t = new Thread(() -> {
+            try {
+                FilteredEvents fe = client.filterEvents(username, products, days);
 
                     if (fe.getEventsByProduct().isEmpty()) {
                         printSafe(RESPONSE_PREFIX + "No events found.");
                         return;
                     }
 
-                    /**
-                     * The FilteredEvents follows a format where each product appears once and is
-                     * associated with a list of (quantity, price) event pairs, e.g:
-                     * 
-                     * Product | Quantity, Price | Quantity, Price | (...) |
-                     */
-                    for (var entry : fe.getEventsByProduct().entrySet()) {
-                        String product = entry.getKey();
-                        List<FilteredEvents.Event> events = entry.getValue();
+                Map<Integer, String> dict = fe.getDictionaryUpdate();
 
-                        if (events.isEmpty()) continue;
+                if (dict != null && !dict.isEmpty()) {
+                    //printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
+                } else {
+                    //printSafe("[Info] No dictionary update received from server.");
+                }
 
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("Product: ").append(product).append(" | ");
+                for (var entry : fe.getEventsByProduct().entrySet()) {
+                    Integer productId = entry.getKey();
+                    List<FilteredEvents.Event> events = entry.getValue();
 
-                        for (FilteredEvents.Event e : events) {
-                            sb.append("Qty: ")
-                            .append(e.quantity)
-                            .append(", Price: ")
-                            .append(String.format("%.2f", e.price))
-                            .append(" | ");
+                    if (events.isEmpty()) continue;
+
+                    String productName = null;
+                    if (dict != null) {
+                        productName = dict.get(productId);
+                        if (productName != null) {
+                            //printSafe("[Info] Product id " + productId + " name obtained from dictionary: " + productName);
                         }
+                    }
+                    if (productName == null) {
+                        productName = ((ClientStub) client).getProductName(productId);
+                        //printSafe("[Info] Product id " + productId + " name fetched from server: " + productName);
+                    }
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Product: ").append(productName).append(" | ");
+
+                    for (FilteredEvents.Event e : events) {
+                        sb.append("Qty: ")
+                        .append(e.quantity)
+                        .append(", Price: ")
+                        .append(String.format("%.2f", e.price))
+                        .append(" | ");
+                    }
 
                         printSafe(sb.toString());
                     }
@@ -570,7 +587,10 @@ public class ClientUI {
             }
 
             // Handle authentication/registration
-            boolean authenticated = handleAuthentication(client, scanner, choice);
+            String authenticatedUsername = handleAuthentication(client, scanner, choice);
+            boolean authenticated = authenticatedUsername != null;
+            if (authenticated) 
+                this.clientUsername = authenticatedUsername;
 
             // If authentication is successful, proceed with operations
             if (authenticated) {
@@ -605,127 +625,117 @@ public class ClientUI {
         boolean running = true;
         List<Thread> threads = new ArrayList<>();
 
-        while (running) {
-            int operation = 0;
-            boolean validChoice = false;
-            
-            while (!validChoice) {
-                try {
-                    String menu = 
-                        "\n============== OPERATIONS MENU ==============\n" +
-                        "1.  Register a Sale - Add a new sale record\n" +
-                        "2.  Total Units Sold - Query quantity sold for a product\n" +
-                        "3.  Total Revenue - Calculate sales volume (quantity × price)\n" +
-                        "4.  Average Sale Price - Get mean price for a product\n" +
-                        "5.  Maximum Sale Price - Find highest price for a product\n" +
-                        "6.  End Current Day - Close day and process notifications\n" +
-                        "7.  Shutdown Server - Terminate server (admin only)\n" +
-                        "8.  Monitor Simultaneous Sales - Alert when 2 products sell together\n" +
-                        "9.  Monitor Consecutive Sales - Alert when N sales happen in a row\n" +
-                        "10. Filter Events (Time Series)\n" +
-                        "11. Exit Application\n" +
-                        "=============================================\n" +
-                        "Select operation (1-11): ";
-                    printSafe(menu);
+        try {
+            while (running) {
+                    int operation = 0;
+                    boolean validChoice = false;
                     
-                    operation = scanner.nextInt();
-                    scanner.nextLine(); // Consume newline
-                    
-                    if (operation >= 1 && operation <= 11) {
-                        validChoice = true;
-                    } else {
-                        printError("Invalid operation! Please choose between 1 and 11.");
-                    }
-                } catch (InputMismatchException e) {
-                    printError("Invalid input! Please enter a number between 1 and 11.");
-                    scanner.nextLine(); // Clear invalid input
-                } catch (Exception e) {
-                    printError("Error reading input: " + e.getMessage());
-                    scanner.nextLine(); // Clear input buffer
-                }
-            }
-
-            try {
-                switch(operation) {
-                    case 1:
-                        handleAddSale(client, scanner, threads);
-                        break;
-                    case 2:
-                        handleSalesQuantity(client, scanner, threads);
-                        break;
-                    case 3:
-                        handleSalesVolume(client, scanner, threads);
-                        break;
-                    case 4:
-                        handleSalesAverage(client, scanner, threads);
-                        break;
-                    case 5:
-                        handleSalesMaxPrice(client, scanner, threads);
-                        break;
-                    case 6:
-                        handleEndDay(client, threads);
-                        break;
-                    case 7:
-                        printSafe("Are you sure you want to shutdown the server? (y/n)");
-                        String confirm = scanner.nextLine().trim().toLowerCase();
-                        if (confirm.equals("y") || confirm.equals("yes")) {
-                            Thread shutdownThread = new Thread(() -> {
-                                try {
-                                    String result = client.shutdown();
-                                    printSafe(RESPONSE_PREFIX + "Server response: " + result);
-                                } catch (IOException e) {
-                                    printInfo("Server shutdown initiated.");
-                                } catch (Exception e) {
-                                    printError("Error during shutdown: " + e.getMessage());
-                                }
-                            });
-                            threads.add(shutdownThread);
-                            shutdownThread.start();
-                            printInfo("Shutdown request sent. Exiting application...");
-                            running = false;
-                        } else {
-                            printInfo("Shutdown cancelled.");
-                        }
-                        break;
-                    case 8:
-                        handleWaitForSimultaneousSales(client, scanner, threads);
-                        break;
-                    case 9:
-                        handleWaitForConsecutiveSales(client, scanner, threads);
-                        break;
-                    case 10:
-                        handleFilterEvents(client, scanner, threads);
-                        break;
-                    case 11:
-                        running = false;
-                        printInfo("Waiting for pending operations to complete...");
-                        for (Thread t : threads) {
-                            try {
-                                t.join(5000); // Wait maximum 5 seconds per thread
-                                if (t.isAlive()) {
-                                    printInfo("Some operations are still running and will be interrupted.");
-                                    t.interrupt();
-                                }
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                printInfo("Wait interrupted.");
-                            }
-                        }
+                    while (!validChoice) {
+                        String menu = 
+                            "\n============== OPERATIONS MENU ==============\n" +
+                            "1.  Register a Sale - Add a new sale record\n" +
+                            "2.  Total Units Sold - Query quantity sold for a product\n" +
+                            "3.  Total Revenue - Calculate sales volume (quantity × price)\n" +
+                            "4.  Average Sale Price - Get mean price for a product\n" +
+                            "5.  Maximum Sale Price - Find highest price for a product\n" +
+                            "6.  End Current Day - Close day and process notifications\n" +
+                            "7.  Shutdown Server - Terminate server (admin only)\n" +
+                            "8.  Monitor Simultaneous Sales - Alert when 2 products sell together\n" +
+                            "9.  Monitor Consecutive Sales - Alert when N sales happen in a row\n" +
+                            "10. Filter Events (Time Series)\n" +
+                            "11. Exit Application\n" +
+                            "=============================================\n" +
+                            "Select operation (1-11): ";
+                            printSafe(menu);
+                        
                         try {
-                            client.disconnect();
-                            printInfo("Disconnected successfully. Goodbye!");
-                        } catch (IOException e) {
-                            printError("Error during disconnect: " + e.getMessage());
+                            operation = scanner.nextInt();
+                            scanner.nextLine();
+                            if (operation >= 1 && operation <= 11) {
+                                validChoice = true;
+                            } else {
+                                printSafe("Invalid operation! Please choose between 1 and 10.");
+                            }
+                        } catch (InputMismatchException e) {
+                            printSafe("Invalid input! Please enter a number between 1 and 10.");
+                            scanner.nextLine();
                         }
-                        break;
-                    default:
-                        printError("Invalid operation!");
-                        break;
+                    }
+
+                    switch(operation) {
+                        case 1:
+                            handleAddSale(client, scanner, threads);
+                            break;
+                        case 2:
+                            handleSalesQuantity(client, scanner, threads);
+                            break;
+                        case 3:
+                            handleSalesVolume(client, scanner, threads);
+                            break;
+                        case 4:
+                            handleSalesAverage(client, scanner, threads);
+                            break;
+                        case 5:
+                            handleSalesMaxPrice(client, scanner, threads);
+                            break;
+                        case 6:
+                            handleEndDay(client, threads);
+                            break;
+                        case 7:
+                            printSafe("Are you sure you want to shutdown the server? (y/n)");
+                            String confirm = scanner.nextLine().trim().toLowerCase();
+                            if (confirm.equals("y") || confirm.equals("yes")) {
+                                Thread shutdownThread = new Thread(() -> {
+                                    try {
+                                        String result = client.shutdown();
+                                        printSafe("[Response] Server response: " + result);
+                                    } catch (IOException e) {
+                                        printSafe("[Response] Server shutdown initiated.");
+                                    }
+                                });
+                                threads.add(shutdownThread);
+                                shutdownThread.start();
+                                printSafe("Shutdown request sent. Exiting application...");
+                                running = false;
+                            } else {
+                                printSafe("Shutdown cancelled.");
+                            }
+                            break;
+                        case 8:
+                            handleWaitForSimultaneousSales(client, scanner, threads);
+                            break;
+                        case 9:
+                            handleWaitForConsecutiveSales(client, scanner, threads);
+                            break;
+                        case 10:
+                            handleFilterEvents(client, this.clientUsername, scanner, threads);
+                            break;
+                        case 11:
+                            running = false;
+                            printSafe("\nWaiting for pending operations to complete...");
+                            for (Thread t : threads) {
+                                try {
+                                    t.join();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    printSafe("Thread interrupted.");
+                                }
+                            }
+                            try {
+                                client.disconnect();
+                                printSafe("Disconnected successfully. Goodbye!");
+                            } catch (IOException e) {
+                                printSafe("Error during disconnect: " + e.getMessage());
+                            }
+                            break;
+                        default:
+                            printSafe("Invalid operation!");
+                            break;
+                    }
                 }
-            } catch (Exception e) {
-                printError("Error executing operation: " + e.getMessage());
-                // Continue running, don't crash
-            }
+        } catch (Exception e) {
+            printError("Error executing operation: " + e.getMessage());
+            // Continue running, don't crash
         }
     }
 }

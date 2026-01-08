@@ -2,6 +2,7 @@ package org.Server;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -296,42 +297,35 @@ public class ServerSkeleton implements IAmazUM {
         return database.waitForConsecutiveSales(n);
     }
 
-   
+
     /**
-     * Builds and returns the FilteredEvents object, from a list of products' names 
-     * and the number of days to look back, containing all filtered sales events grouped by product.
+     * Helper method to filter sales events grouped by product ID.
      * 
-     * @param products  The list of products to filter.
-     * @param days      The number of days to look back.
-     * @return          The FilteredEvents object.
+     * @param productIds    The list of product to filter.
+     * @param days          The number of days to look back.
+     * 
+     * @return The filter sales events map.
      */
-    @Override
-    public FilteredEvents filterEvents(List<String> products, int days) {
+    private Map<Integer, List<FilteredEvents.Event>> collectEvents(List<Integer> productIds, int days) {
+
         int currentDay = database.getCurrentDay();
-        if (days < 1 || currentDay < 0)
-            return new FilteredEvents(Map.of());
+        Map<Integer, List<FilteredEvents.Event>> eventsByProduct = new HashMap<>();
 
-        Map<String, List<FilteredEvents.Event>> result = new HashMap<>();
-
-        for (String product : products) {
-            result.put(product, new ArrayList<>());
+        for (int pid : productIds) {
+            eventsByProduct.put(pid, new ArrayList<>());
         }
 
-        // Iterates through the last N given days
         for (int i = 1; i <= days; i++) {
             int day = currentDay - i;
             if (day < 0) break;
 
-            // Date from the day, either in memory or disk
             Map<Integer, List<Venda>> dayData = database.getDayData(day);
 
-            for (String productName : products) {
-                int productId = database.getProductId(productName);
-
-                List<Venda> vendas = dayData.get(productId);
+            for (int pid : productIds) {
+                List<Venda> vendas = dayData.get(pid);
                 if (vendas != null) {
                     for (Venda v : vendas) {
-                        result.get(productName).add(
+                        eventsByProduct.get(pid).add(
                             new FilteredEvents.Event(
                                 v.getQuantidade(),
                                 v.getPreco()
@@ -342,7 +336,71 @@ public class ServerSkeleton implements IAmazUM {
             }
         }
 
-        return new FilteredEvents(result);
+        return eventsByProduct;
+    }
+
+
+    /**
+     * Helper method to update the client's personal dictionary
+     * This method will check if the client's personal dictionary has the
+     * mapping for the product ids collection and update the personal dictionary
+     * if necessary.
+     * 
+     * @param username The username of the client to update.
+     * @param productIds The collection of product Ids to update the personal dictionary.
+     * 
+     * @return The updated personal dictionary of the client.
+     */
+    private Map<Integer, String> updateDictionary(String username, Collection<Integer> productIds) {
+
+        Map<Integer, String> dictionaryUpdate = new HashMap<>();
+        Map<Integer, String> userDict = database.getUserDictionary(username);
+
+        for (Integer pid : productIds) {
+            if (!userDict.containsKey(pid)) {
+                String productName = database.getProductName(pid);
+                dictionaryUpdate.put(pid, productName);
+            }
+        }
+
+        if (!dictionaryUpdate.isEmpty()) {
+            userDict.putAll(dictionaryUpdate);
+        }
+
+        return dictionaryUpdate;
+    }
+   
+    /**
+     * Builds and returns the FilteredEvents object from a list of product names
+     * and the number of days to look back, containing all filtered sales events
+     * grouped by product ID.
+     *
+     * Along with the events, this method also includes a dictionary update
+     * containing only the product IDs unknown to the requesting user.
+     *
+     * @param username  The user requesting the events.
+     * @param products  The list of product names to filter.
+     * @param days      The number of days to look back.
+     * @return          The FilteredEvents object.
+     */
+    @Override
+    public FilteredEvents filterEvents(String username, List<String> products, int days) {
+
+        int currentDay = database.getCurrentDay();
+        if (days < 1 || currentDay < 0) {
+            return new FilteredEvents(Map.of(), Map.of());
+        }
+
+        List<Integer> productIds = new ArrayList<>();
+        for (String p : products) {
+            productIds.add(database.getProductId(p));
+        }
+
+        Map<Integer, List<FilteredEvents.Event>> events = collectEvents(productIds, days);
+
+        Map<Integer, String> dictUpdate = updateDictionary(username, events.keySet());
+
+        return new FilteredEvents(dictUpdate, events);
     }
 
     @Override

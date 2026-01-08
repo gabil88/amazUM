@@ -134,12 +134,13 @@ public interface IAmazUM {
     /**
      * Filtra eventos de vendas de um conjunto de produtos relativos aos últimos N dias.
      *
-     * @param products Conjunto de produtos
-     * @param daysAgo Número de dias a considerar
-     * @throws IOException Erro de rede
-     * @return Estrutura serializável compacta com os eventos
+     * @param username Nome do cliente.
+     * @param products Conjunto de produtos.
+     * @param daysAgo Número de dias a considerar.
+     * @throws IOException Erro de rede.
+     * @return Estrutura serializável compacta com os eventos.
      */
-    FilteredEvents filterEvents(List<String> products, int daysAgo) throws IOException;
+    FilteredEvents filterEvents(String username, List<String> products, int days) throws IOException;
 
     void disconnect() throws IOException;
 }

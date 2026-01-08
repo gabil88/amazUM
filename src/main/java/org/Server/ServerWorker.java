@@ -259,17 +259,18 @@ class ServerWorker implements Runnable {
                 }).start();
                 break;
 
-            // -------- Filtro de Eventos ----------
-            case FilterEvents:
-                int count = in.readInt();
-                List<String> products = new ArrayList<>();
-                for (int i = 0; i < count; i++) {
-                    products.add(in.readUTF());
-                }
-                int daysAgo = in.readInt();
+                    // -------- Filtro de Eventos ----------
+                    case FilterEvents:
+                        String eventsUsername = in.readUTF();
+                        int count = in.readInt();
+                        List<String> products = new ArrayList<>();
+                        for (int i = 0; i < count; i++) {
+                            products.add(in.readUTF());
+                        }
+                        int daysAgo = in.readInt();
 
                 taskPool.submit(
-                    () -> skeleton.filterEvents(products, daysAgo),
+                    () -> skeleton.filterEvents(eventsUsername,products, daysAgo),
                     (result) -> sendResponse(frame, requestType,
                         (out) -> result.serialize(out))
                 );
