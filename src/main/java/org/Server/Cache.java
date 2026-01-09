@@ -10,6 +10,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class Cache {
 
+    // Record gera equals() e hashCode() automaticamente - essencial para chaves de Map
     public record CacheKey(int day, String product) {}
 
     // Dados guardados para cada chave
