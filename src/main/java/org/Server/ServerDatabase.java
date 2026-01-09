@@ -45,9 +45,12 @@ class ServerDatabase {
      * Default constructor for the ServerDatabase class.
      * 
      * Initializes the PersistenceManager and loads data from disk.
+     * 
+     * @param MAX_DAYS_IN_MEMORY Número máximo de dias a manter em memória
+     * @param MAX_DAYS_ON_DISK Número máximo de dias a manter em disco (0 = sem limite)
      */
-    public ServerDatabase(int MAX_DAYS_IN_MEMORY) {
-        this.persistence = new PersistenceManager();
+    public ServerDatabase(int MAX_DAYS_IN_MEMORY, int MAX_DAYS_ON_DISK) {
+        this.persistence = new PersistenceManager(MAX_DAYS_ON_DISK);
         this.ordersCurDay = new HashMap<>();
         this.daysInMemory = new HashMap<>();
         this.userDictionaries = new HashMap<>();
@@ -292,10 +295,8 @@ class ServerDatabase {
             this.currentDay++;
             newDay = this.currentDay;
 
-            // 2. Adiciona o dia terminado à memória
-            if (!dataToSave.isEmpty()) {
-                daysInMemory.put(dayToSave, dataToSave);
-            }
+            // 2. Adiciona o dia terminado à memória (mesmo se vazio)
+            daysInMemory.put(dayToSave, dataToSave);
 
             // 3. Remove o dia mais antigo se excedemos M dias
             if (daysInMemory.size() > MAX_DAYS_IN_MEMORY) {
@@ -317,6 +318,10 @@ class ServerDatabase {
             persistence.serializeDay(dataToSave, dayToSave);
             persistence.saveCurrentDay(newDay);
             persistence.saveDictionary(dictionary);
+            
+            // 6. Limpa dias antigos do disco
+            persistence.cleanupOldDays(newDay);
+            
             return true;
         } catch (IOException e) {
             System.err.println("Erro ao salvar vendas do dia " + dayToSave + ": " + e.getMessage());

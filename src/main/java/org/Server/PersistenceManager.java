@@ -34,9 +34,52 @@ public class PersistenceManager {
     // Lock por dia - permite escrita/leitura concorrente de dias diferentes
     private final ConcurrentHashMap<Integer, ReentrantReadWriteLock> dayLocks = new ConcurrentHashMap<>();
     
-    public PersistenceManager() {
+    // Configuração: máximo de dias a manter em disco
+    private final int maxDaysOnDisk;
+    
+    public PersistenceManager(int maxDaysOnDisk) {
+        this.maxDaysOnDisk = maxDaysOnDisk;
         // Ensure storage directory exists
         new File(STORAGE_DIR).mkdirs();
+    }
+    
+    /**
+     * Remove dias antigos do disco, mantendo apenas os últimos maxDaysOnDisk dias.
+     * 
+     * @param currentDay O dia atual
+     */
+    public void cleanupOldDays(int currentDay) {
+        if (maxDaysOnDisk <= 0) {
+            return; // Sem limite, não limpa nada
+        }
+        
+        int oldestDayToKeep = currentDay - maxDaysOnDisk;
+        
+        File storageDir = new File(STORAGE_DIR);
+        File[] salesFiles = storageDir.listFiles((dir, name) -> name.startsWith("orders_day_") && name.endsWith(".sales"));
+        
+        if (salesFiles != null) {
+            for (File file : salesFiles) {
+                try {
+                    // Extrai o número do dia do nome do ficheiro: orders_day_X.sales
+                    String name = file.getName();
+                    int day = Integer.parseInt(name.replace("orders_day_", "").replace(".sales", ""));
+                    
+                    if (day < oldestDayToKeep) {
+                        ReentrantReadWriteLock lock = getDayLock(day);
+                        lock.writeLock().lock();
+                        try {
+                            file.delete(); 
+                        } finally {
+                            lock.writeLock().unlock();
+                        }
+                        dayLocks.remove(day);
+                    }
+                } catch (NumberFormatException e) {
+                    // Ignora ficheiros com formato inválido
+                }
+            }
+        }
     }
     
     /**
