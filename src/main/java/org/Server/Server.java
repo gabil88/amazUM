@@ -31,9 +31,13 @@ public class Server {
 
     /**
      * Initializes a Server instance with a fresh database.
+     * 
+     * @param daysInMemory Número de dias a manter em memória
+     * @param cacheCapacity Capacidade da cache
+     * @param daysOnDisk Número de dias a manter em disco (0 = sem limite)
      */
-    public Server(int daysInMemory, int cacheCapacity) {
-        this.database = new ServerDatabase(daysInMemory);
+    public Server(int daysInMemory, int cacheCapacity, int daysOnDisk) {
+        this.database = new ServerDatabase(daysInMemory, daysOnDisk);
         Cache cache = new Cache(cacheCapacity);
         this.skeleton = new ServerSkeleton(database, cache);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
@@ -137,9 +141,21 @@ public class Server {
     public static void main(String[] args) {
 
         Scanner sc = new Scanner(System.in);
+        int daysOnDisk = -1; // -1 indica que ainda não foi definido
         int daysInMemory = 0;
         int cacheCapacity = 0;
 
+        while (daysOnDisk < 0) {
+            System.out.print("Enter the number of days to keep on disk (0 for unlimited): ");
+            try {
+                daysOnDisk = Integer.parseInt(sc.nextLine());
+                if (daysOnDisk < 0) {
+                    System.out.println("Number of days on disk must be 0 or greater.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number of days. Please enter a valid number.");
+            }
+        }
         while (daysInMemory <= 1) {
             System.out.print("Enter the number of days to be kept in memory: ");
             try {
@@ -159,12 +175,12 @@ public class Server {
                     System.out.println("Cache capacity must be greater than 0.");
                 }
             } catch (NumberFormatException e) {
-                System.out.println("Invalid cache capacity. Please enter a valid number for the cache capacity.");
+                System.out.println("Invalid number of days. Please enter a valid number.");
             }
         }
         sc.close();
 
-        Server server = new Server(daysInMemory, cacheCapacity);
+        Server server = new Server(daysInMemory, cacheCapacity, daysOnDisk);
         server.start(DEFAULT_PORT);
         // Quando start() termina (após shutdown), o programa acaba naturalmente
         System.out.println("Server process ending.");
