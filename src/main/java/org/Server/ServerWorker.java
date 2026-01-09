@@ -32,7 +32,8 @@ class ServerWorker implements Runnable {
     private TaggedConnection taggedConnection;
     private volatile boolean running;
     private String clientId; // For logging purposes
-    
+    private boolean clientAuthenticated;
+
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private interface ResponseWriter {
@@ -83,6 +84,17 @@ class ServerWorker implements Runnable {
         System.out.println("[" + LocalDateTime.now().format(TIME_FORMAT) + "] [INFO] [Client " + clientId + "] " + message);
     }
 
+    /**
+     * Verifies if a client is authenticated to the Server, preventing clients
+     * from requesting server operations if they are not authenticated.
+     * 
+     * @throws IOException If a client is not authenticated and tries to do a request.
+     */
+    private void requireAuth() throws IOException {
+        if (!clientAuthenticated || clientId == null) {
+            throw new IOException("Client not authenticated");
+        }
+    }
 
     /**
      * Main execution method of the worker thread.
@@ -161,16 +173,22 @@ class ServerWorker implements Runnable {
                 String username = in.readUTF();
                 String password = in.readUTF();
                 boolean userExists = skeleton.authenticate(username, password);
+                if(userExists)
+                    this.clientAuthenticated = true;
                 sendResponse(frame, requestType, (out) -> out.writeBoolean(userExists));
                 break;
             case Register:
                 String regUsername = in.readUTF();
                 String regPassword = in.readUTF();
                 boolean registered = skeleton.register(regUsername, regPassword);
+                if(registered)
+                    this.clientAuthenticated = true;
                 sendResponse(frame, requestType, (out) -> out.writeBoolean(registered));
                 break;
             /*--Operations that need parallel processing--*/
             case AddSale:
+                requireAuth();
+
                 String productName = in.readUTF();
                 int quantity = in.readInt();
                 double price = in.readDouble();
@@ -180,6 +198,8 @@ class ServerWorker implements Runnable {
                 );
                 break;
             case SalesAveragePrice:
+                requireAuth();
+
                 String prodName = in.readUTF();
                 int days = in.readInt();
                 taskPool.submit(
@@ -188,6 +208,8 @@ class ServerWorker implements Runnable {
                 );
                 break;
             case SalesMaxPrice:
+                requireAuth();
+
                 String productNameMax = in.readUTF();
                 int daysMax = in.readInt();
                 taskPool.submit(
@@ -196,6 +218,8 @@ class ServerWorker implements Runnable {
                 );
                 break;
             case SalesQuantity:
+                requireAuth();
+
                 String productNameQty = in.readUTF();
                 int daysQty = in.readInt();
                 taskPool.submit(
@@ -204,6 +228,8 @@ class ServerWorker implements Runnable {
                 );
                 break;
             case SalesVolume:
+                requireAuth();
+
                 String productNameVol = in.readUTF();
                 int daysVol = in.readInt();
                 taskPool.submit(
@@ -212,6 +238,8 @@ class ServerWorker implements Runnable {
                 );
                 break;
             case EndDay:
+                requireAuth();
+
                 taskPool.submit(
                     () -> {
                         skeleton.endDay();
@@ -222,6 +250,8 @@ class ServerWorker implements Runnable {
                 break;
             /*-----------------------------------------*/
             case SimultaneousSales:
+                requireAuth();
+
                 String p1 = in.readUTF();
                 String p2 = in.readUTF();
                 new Thread(() -> {
@@ -238,6 +268,8 @@ class ServerWorker implements Runnable {
                 break;
 
             case ConsecutiveSales:
+                requireAuth();
+
                 int n = in.readInt();
                 new Thread(() -> {
                     try {
@@ -259,18 +291,19 @@ class ServerWorker implements Runnable {
                 }).start();
                 break;
 
-                    // -------- Filtro de Eventos ----------
-                    case FilterEvents:
-                        String eventsUsername = in.readUTF();
-                        int count = in.readInt();
-                        List<String> products = new ArrayList<>();
-                        for (int i = 0; i < count; i++) {
-                            products.add(in.readUTF());
-                        }
-                        int daysAgo = in.readInt();
+            // -------- Filtro de Eventos ----------
+            case FilterEvents:
+                requireAuth();
+
+                int count = in.readInt();
+                List<String> products = new ArrayList<>();
+                for (int i = 0; i < count; i++) {
+                    products.add(in.readUTF());
+                }
+                int daysAgo = in.readInt();
 
                 taskPool.submit(
-                    () -> skeleton.filterEvents(eventsUsername,products, daysAgo),
+                    () -> skeleton.filterEvents(this.clientId, products, daysAgo),
                     (result) -> sendResponse(frame, requestType,
                         (out) -> result.serialize(out))
                 );
@@ -287,6 +320,8 @@ class ServerWorker implements Runnable {
                 break;
             
             case Shutdown:
+                requireAuth();
+
                 logInfo("Shutdown requested");
                 skeleton.shutdown();
                 server.close();

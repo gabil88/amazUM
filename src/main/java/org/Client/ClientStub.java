@@ -351,6 +351,7 @@ public class ClientStub implements IAmazUM, AutoCloseable {
      * @param productId The productId to be mapped to a String.
      * @return The product name associated with the given product id.
      */
+    @Override
     public String getProductName(int productId) {
         dictLock.lock();
         try {
@@ -360,25 +361,31 @@ public class ClientStub implements IAmazUM, AutoCloseable {
         }
     }
 
+    @Override
+    public FilteredEvents filterEvents(String username, List<String> products, int days) throws IOException {
+        // Client stub does not need the username when sending the request to
+        // the server; delegate to the existing implementation so the class
+        // satisfies the updated IAmazUM interface.
+        return filterEvents(products, days);
+    }
+
     /**
      * Gets the FilteredEvents from a list of product names and the number of days to look back.
      * 
      * This method may also update the Client's personal product dictionary sent by the server.
      * 
-     * @param username      The username of the client.
      * @param products      The list of products to filter.
      * @param days          The number of last days to consider.
      * @return              The FilteredEvents object, containing all filtered sales events grouped by product.
      * @throws IOExpcetion  if there is an issue during the request.
      */
     @Override
-    public FilteredEvents filterEvents(String username, List<String> products, int days) throws IOException {
+    public FilteredEvents filterEvents(List<String> products, int days) throws IOException {
         byte[] requestData;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos)) {
 
-            dos.writeUTF(username);
             dos.writeInt(products.size());
             for (String p : products)
                 dos.writeUTF(p);

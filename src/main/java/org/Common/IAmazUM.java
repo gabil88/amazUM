@@ -130,6 +130,23 @@ public interface IAmazUM {
      * @throws InterruptedException Se a thread for interrompida
      */
     String waitForConsecutiveSales(int n) throws IOException, InterruptedException;
+    
+    /**
+     * Devolve o nome do produto associado ao identificador único desse mesmo produto.
+     * 
+     * @param productId O identificador único do produto
+     * @return Nome do produto se existir, se não null.
+     */
+    public String getProductName(int productId);
+
+    /**
+     * Filtra eventos de vendas relativos a um conjunto de produtos, 
+     * ocorridos nos últimos dias.
+     * Este método não recebe o nome do utilizador, o nome do utilizador
+     * está associado implicitamente à sessão no servidor no ServerWorker.
+     */
+    FilteredEvents filterEvents(List<String> products, int days) throws IOException;
+
 
     /**
      * Filtra eventos de vendas de um conjunto de produtos relativos aos últimos N dias.

@@ -3,6 +3,7 @@ package org.Server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.Utils.RequestType;
@@ -21,7 +22,6 @@ public class Server {
     private static final int MAX_CLIENTS = 100;
     private static final int DEFAULT_PORT = 12345;
     private static final int TASK_POOL_SIZE = 70;
-    private static final int CACHE_CAPACITY = 300;
 
     private final Thread[] workers = new Thread[MAX_CLIENTS];
     private final ReentrantLock lock = new ReentrantLock();
@@ -32,9 +32,9 @@ public class Server {
     /**
      * Initializes a Server instance with a fresh database.
      */
-    public Server() {
-        this.database = new ServerDatabase();
-        Cache cache = new Cache(CACHE_CAPACITY);
+    public Server(int daysInMemory, int cacheCapacity) {
+        this.database = new ServerDatabase(daysInMemory);
+        Cache cache = new Cache(cacheCapacity);
         this.skeleton = new ServerSkeleton(database, cache);
         this.taskPool = new TaskPool(TASK_POOL_SIZE);
     }
@@ -135,7 +135,36 @@ public class Server {
      * Initializes a new Server instance and starts it on port 12345.
      */
     public static void main(String[] args) {
-        Server server = new Server();
+
+        Scanner sc = new Scanner(System.in);
+        int daysInMemory = 0;
+        int cacheCapacity = 0;
+
+        while (daysInMemory <= 1) {
+            System.out.print("Enter the number of days to be kept in memory: ");
+            try {
+                daysInMemory = Integer.parseInt(sc.nextLine());
+                if (daysInMemory <= 1) {
+                    System.out.println("Number of days must be greater than 1.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid number of days. Please enter a valid number of days.");
+            }
+        }
+        while (cacheCapacity <= 0) {
+            System.out.print("Enter the cache capacity: ");
+            try {
+                cacheCapacity = Integer.parseInt(sc.nextLine());
+                if (cacheCapacity <= 0) {
+                    System.out.println("Cache capacity must be greater than 0.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid cache capacity. Please enter a valid number for the cache capacity.");
+            }
+        }
+        sc.close();
+
+        Server server = new Server(daysInMemory, cacheCapacity);
         server.start(DEFAULT_PORT);
         // Quando start() termina (após shutdown), o programa acaba naturalmente
         System.out.println("Server process ending.");

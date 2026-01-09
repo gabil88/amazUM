@@ -21,11 +21,9 @@ public class ClientUI {
     private static final String ERROR_PREFIX = "[ERRO] ";
     private static final String INFO_PREFIX = "[INFO] ";
     private static final String RESPONSE_PREFIX = "[Response] ";
-    private String clientUsername;
 
     public ClientUI(IAmazUM client) {
         this.client = client;
-        this.clientUsername = "";
     }
     
     /**
@@ -79,34 +77,21 @@ public class ClientUI {
      * @param choice 1 for login, 2 for register.
      * @return the username when authentication/registration succeeded, or null on failure.
      */
-    private static String handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
-        try {
-            printSafe("Enter your username: ");
-            String username = scanner.nextLine().trim();
-            
-            if (username.isEmpty()) {
-                printError("Username cannot be empty.");
-                return null;
-            }
-            
-            printSafe("Enter your password: ");
-            String password = scanner.nextLine();
-            
-            if (password.isEmpty()) {
-                printError("Password cannot be empty.");
-                return null;
-            }
+    private static boolean handleAuthentication(IAmazUM client, Scanner scanner, int choice) {
+        printSafe("Enter your username: ");
+        String username = scanner.nextLine();
+        printSafe("Enter your password: ");
+        String password = scanner.nextLine();
 
+        try {
             if (choice == 1) {
-                boolean authenticated = client.authenticate(username, password);
-                return authenticated ? username : null;
+                return client.authenticate(username, password);
             } else {
-                boolean registered = client.register(username, password);
-                return registered ? username : null;
+                return client.register(username, password);
             }
         } catch (IOException e) {
             printSafe("Error during " + (choice == 1 ? "authentication" : "registration") + ": " + e.getMessage());
-            return null;
+            return false;
         }
     }
 
@@ -428,7 +413,7 @@ public class ClientUI {
     /**
      * Handles the filter events in a separated thread.
      */
-    private static void handleFilterEvents(IAmazUM client, String username, Scanner scanner, List<Thread> threads) {
+    private static void handleFilterEvents(IAmazUM client, Scanner scanner, List<Thread> threads) {
         try {
             List<String> productsInput;
 
@@ -453,7 +438,7 @@ public class ClientUI {
 
         Thread t = new Thread(() -> {
             try {
-                FilteredEvents fe = client.filterEvents(username, products, days);
+                FilteredEvents fe = client.filterEvents(products, days);
 
                     if (fe.getEventsByProduct().isEmpty()) {
                         printSafe(RESPONSE_PREFIX + "No events found.");
@@ -462,10 +447,10 @@ public class ClientUI {
 
                 Map<Integer, String> dict = fe.getDictionaryUpdate();
 
-                if (dict != null && !dict.isEmpty()) {
-                    //printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
+                if (!dict.isEmpty()) {
+                    printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
                 } else {
-                    //printSafe("[Info] No dictionary update received from server.");
+                    printSafe("[Info] No dictionary update received from server.");
                 }
 
                 for (var entry : fe.getEventsByProduct().entrySet()) {
@@ -482,7 +467,7 @@ public class ClientUI {
                         }
                     }
                     if (productName == null) {
-                        productName = ((ClientStub) client).getProductName(productId);
+                        productName = client.getProductName(productId);
                         //printSafe("[Info] Product id " + productId + " name fetched from server: " + productName);
                     }
 
@@ -587,10 +572,7 @@ public class ClientUI {
             }
 
             // Handle authentication/registration
-            String authenticatedUsername = handleAuthentication(client, scanner, choice);
-            boolean authenticated = authenticatedUsername != null;
-            if (authenticated) 
-                this.clientUsername = authenticatedUsername;
+            boolean authenticated = handleAuthentication(client, scanner, choice);
 
             // If authentication is successful, proceed with operations
             if (authenticated) {
@@ -708,7 +690,7 @@ public class ClientUI {
                             handleWaitForConsecutiveSales(client, scanner, threads);
                             break;
                         case 10:
-                            handleFilterEvents(client, this.clientUsername, scanner, threads);
+                            handleFilterEvents(client, scanner, threads);
                             break;
                         case 11:
                             running = false;

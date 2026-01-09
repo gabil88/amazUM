@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 class ServerDatabase {
     // Configuração: quantos dias manter em memória
-    private static final int MAX_DAYS_IN_MEMORY = 7;
+    private final int MAX_DAYS_IN_MEMORY;
 
     private int currentDay = 0;
 
@@ -46,7 +46,7 @@ class ServerDatabase {
      * 
      * Initializes the PersistenceManager and loads data from disk.
      */
-    public ServerDatabase() {
+    public ServerDatabase(int MAX_DAYS_IN_MEMORY) {
         this.persistence = new PersistenceManager();
         this.ordersCurDay = new HashMap<>();
         this.daysInMemory = new HashMap<>();
@@ -57,6 +57,7 @@ class ServerDatabase {
         this.users = persistence.loadUsers();
         this.dictionary = persistence.loadDictionary();
 
+        this.MAX_DAYS_IN_MEMORY = MAX_DAYS_IN_MEMORY;
         // Carrega os últimos M dias para memória
         loadLastDaysToMemory();
 
@@ -162,6 +163,22 @@ class ServerDatabase {
         userDictLock.writeLock().lock();
         try {
             return userDictionaries.computeIfAbsent(username, u -> new HashMap<>());
+        } finally {
+            userDictLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Updates the personal dictionary of the user safely using writelock.
+     * 
+     * @param username  The user to update the personal dictionary.
+     * @param updates   New entries in the personal dictionary.
+     */
+    public void updateUserDictionary(String username, Map<Integer, String> updates) {
+        userDictLock.writeLock().lock();
+        try {
+            Map<Integer, String> dict = userDictionaries.computeIfAbsent(username, u -> new HashMap<>());
+            dict.putAll(updates);
         } finally {
             userDictLock.writeLock().unlock();
         }

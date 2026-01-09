@@ -297,6 +297,10 @@ public class ServerSkeleton implements IAmazUM {
         return database.waitForConsecutiveSales(n);
     }
 
+    @Override
+    public String getProductName(int productId) {
+        return database.getProductName(productId);
+    }
 
     /**
      * Helper method to filter sales events grouped by product ID.
@@ -364,12 +368,18 @@ public class ServerSkeleton implements IAmazUM {
         }
 
         if (!dictionaryUpdate.isEmpty()) {
-            userDict.putAll(dictionaryUpdate);
+            database.updateUserDictionary(username, dictionaryUpdate);
         }
 
         return dictionaryUpdate;
     }
    
+    @Override
+    public FilteredEvents filterEvents(List<String> products, int days) {
+        throw new UnsupportedOperationException(
+            "filterEvents method must be called via ServerWorker with username");
+    }
+
     /**
      * Builds and returns the FilteredEvents object from a list of product names
      * and the number of days to look back, containing all filtered sales events
