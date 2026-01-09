@@ -19,9 +19,9 @@ public class Server {
     private final TaskPool taskPool;
 
     // Configuration Constants
-    private static final int MAX_CLIENTS = 100;
+    private static final int MAX_CLIENTS = 10;
     private static final int DEFAULT_PORT = 12345;
-    private static final int TASK_POOL_SIZE = 1000;
+    private static final int TASK_POOL_SIZE = 8;
 
     private final Thread[] workers = new Thread[MAX_CLIENTS];
     private final ReentrantLock lock = new ReentrantLock();

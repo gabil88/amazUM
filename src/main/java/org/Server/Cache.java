@@ -2,11 +2,12 @@ package org.Server;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /*
  * LRU Cache usando LinkedHashMap com accessOrder=true.
  * O LinkedHashMap gere automaticamente a ordem de acesso (LRU) e a evição.
+ * 
  */
 public class Cache {
 
@@ -20,7 +21,9 @@ public class Cache {
         Double maxPrice;
     }
 
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    // Usar ReentrantLock em vez de ReentrantReadWriteLock porque 
+    // LinkedHashMap com accessOrder=true modifica o map em cada get()
+    private final ReentrantLock lock = new ReentrantLock();
     private final Map<CacheKey, CacheData> map;
 
     public Cache(int maxCapacity) {
@@ -35,34 +38,35 @@ public class Cache {
     }
 
     // --- MÉTODOS PÚBLICOS (Getters) ---
+    // NOTA: Usam lock exclusivo porque get() com accessOrder=true modifica o map
 
     public Integer getQuantidade(int day, String product) {
-        lock.readLock().lock();
+        lock.lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.quantidade : null;
         } finally {
-            lock.readLock().unlock();
+            lock.unlock();
         }
     }
 
     public Double getVolume(int day, String product) {
-        lock.readLock().lock();
+        lock.lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.volume : null;
         } finally {
-            lock.readLock().unlock();
+            lock.unlock();
         }
     }
 
     public Double getMaxPrice(int day, String product) {
-        lock.readLock().lock();
+        lock.lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.maxPrice : null;
         } finally {
-            lock.readLock().unlock();
+            lock.unlock();
         }
     }
 
