@@ -447,7 +447,7 @@ public class ClientUI {
 
                 Map<Integer, String> dict = fe.getDictionaryUpdate();
 
-                if (!dict.isEmpty()) {
+                if (dict != null && !dict.isEmpty()) {
                     printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
                 } else {
                     printSafe("[Info] No dictionary update received from server.");
