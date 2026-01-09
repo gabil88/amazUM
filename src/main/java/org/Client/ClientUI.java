@@ -11,8 +11,8 @@ import java.util.Scanner;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.Common.FilteredEvents;
-import org.Common.NetworkException;
 import org.Common.IAmazUM;
+import org.Common.NetworkException;
 
 public class ClientUI {
     
@@ -447,12 +447,6 @@ public class ClientUI {
 
                 Map<Integer, String> dict = fe.getDictionaryUpdate();
 
-                if (dict != null && !dict.isEmpty()) {
-                    printSafe("[Info] Received dictionary update with " + dict.size() + " entries.");
-                } else {
-                    printSafe("[Info] No dictionary update received from server.");
-                }
-
                 for (var entry : fe.getEventsByProduct().entrySet()) {
                     Integer productId = entry.getKey();
                     List<FilteredEvents.Event> events = entry.getValue();
@@ -461,14 +455,12 @@ public class ClientUI {
 
                     String productName = null;
                     if (dict != null) {
+                        // Check possible mapping via dictionary from the FilteredEvents object
                         productName = dict.get(productId);
-                        if (productName != null) {
-                            //printSafe("[Info] Product id " + productId + " name obtained from dictionary: " + productName);
-                        }
                     }
                     if (productName == null) {
+                        // Mapping done via client's personal dictionary
                         productName = client.getProductName(productId);
-                        //printSafe("[Info] Product id " + productId + " name fetched from server: " + productName);
                     }
 
                     StringBuilder sb = new StringBuilder();
@@ -481,7 +473,6 @@ public class ClientUI {
                         .append(String.format("%.2f", e.price))
                         .append(" | ");
                     }
-
                         printSafe(sb.toString());
                     }
 
