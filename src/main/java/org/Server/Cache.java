@@ -2,7 +2,7 @@ package org.Server;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /*
  * LRU Cache usando LinkedHashMap com accessOrder=true.
@@ -20,7 +20,7 @@ public class Cache {
         Double maxPrice;
     }
 
-    private final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private final Map<CacheKey, CacheData> map;
 
     public Cache(int maxCapacity) {
@@ -37,64 +37,64 @@ public class Cache {
     // --- MÉTODOS PÚBLICOS (Getters) ---
 
     public Integer getQuantidade(int day, String product) {
-        lock.lock();
+        lock.readLock().lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.quantidade : null;
         } finally {
-            lock.unlock();
+            lock.readLock().unlock();
         }
     }
 
     public Double getVolume(int day, String product) {
-        lock.lock();
+        lock.readLock().lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.volume : null;
         } finally {
-            lock.unlock();
+            lock.readLock().unlock();
         }
     }
 
     public Double getMaxPrice(int day, String product) {
-        lock.lock();
+        lock.readLock().lock();
         try {
             CacheData data = map.get(new CacheKey(day, product));
             return data != null ? data.maxPrice : null;
         } finally {
-            lock.unlock();
+            lock.readLock().unlock();
         }
     }
 
     // --- MÉTODOS PÚBLICOS (Setters) ---
 
     public void setQuantidade(int day, String product, int valor) {
-        lock.lock();
+        lock.writeLock().lock();
         try {
             CacheKey key = new CacheKey(day, product);
             map.computeIfAbsent(key, k -> new CacheData()).quantidade = valor;
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
     }
 
     public void setVolume(int day, String product, double valor) {
-        lock.lock();
+        lock.writeLock().lock();
         try {
             CacheKey key = new CacheKey(day, product);
             map.computeIfAbsent(key, k -> new CacheData()).volume = valor;
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
     }
 
     public void setMaxPrice(int day, String product, double valor) {
-        lock.lock();
+        lock.writeLock().lock();
         try {
             CacheKey key = new CacheKey(day, product);
             map.computeIfAbsent(key, k -> new CacheData()).maxPrice = valor;
         } finally {
-            lock.unlock();
+            lock.writeLock().unlock();
         }
     }
 }

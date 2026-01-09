@@ -30,7 +30,7 @@ class ServerDatabase {
      * Map that stores the actual day's orders (dia em curso, ainda não terminado)
      */
     private Map<Integer, List<Venda>> ordersCurDay;
-    private final ReentrantLock ordersLock = new ReentrantLock();
+    private final ReentrantReadWriteLock ordersLock = new ReentrantReadWriteLock();
 
     /* Map that stores all registered users in the Server */
     private Map<String, String> users;
@@ -120,11 +120,11 @@ class ServerDatabase {
     }
 
     public int getCurrentDay() {
-        ordersLock.lock();
+        ordersLock.readLock().lock();
         try {
             return this.currentDay;
         } finally {
-            ordersLock.unlock();
+            ordersLock.readLock().unlock();
         }
     }
 
@@ -264,7 +264,7 @@ class ServerDatabase {
      * @return true if sale record added successfully
      */
     public boolean addSaleRecord(String produto, int quantidade, double preco) {
-        ordersLock.lock();
+        ordersLock.writeLock().lock();
         try {
             int id = dictionary.get(produto);
 
@@ -275,7 +275,7 @@ class ServerDatabase {
 
             return true;
         } finally {
-            ordersLock.unlock();
+            ordersLock.writeLock().unlock();
         }
     }
 
@@ -284,7 +284,7 @@ class ServerDatabase {
         int dayToSave;
         int newDay;
 
-        ordersLock.lock();
+        ordersLock.writeLock().lock();
         try {
             // 1. "Swap" atómico do estado
             dataToSave = this.ordersCurDay;
@@ -310,7 +310,7 @@ class ServerDatabase {
             System.out.println("Dias em memória: " + this.daysInMemory.keySet());
 
         } finally {
-            ordersLock.unlock();
+            ordersLock.writeLock().unlock();
         }
 
         // 5. Operação de I/O pesada feita SEM bloquear os clientes
@@ -330,7 +330,7 @@ class ServerDatabase {
     }
 
     public int shutdown() {
-        ordersLock.lock();
+        ordersLock.writeLock().lock();
         usersLock.lock();
 
         try {
@@ -358,7 +358,7 @@ class ServerDatabase {
         } finally {
             // FASE DE ENCOLHIMENTO: libertar locks (ordem inversa)
             usersLock.unlock();
-            ordersLock.unlock();
+            ordersLock.writeLock().unlock();
         }
     }
 
@@ -372,12 +372,12 @@ class ServerDatabase {
     public Map<Integer, List<Venda>> getNDaysData(int n) {
         Map<Integer, List<Venda>> combinedData = new HashMap<>();
 
-        ordersLock.lock();
+        ordersLock.readLock().lock();
         int currentDaySnapshot;
         try {
             currentDaySnapshot = this.currentDay;
         } finally {
-            ordersLock.unlock();
+            ordersLock.readLock().unlock();
         }
 
         for (int i = 1; i <= n; i++) {
